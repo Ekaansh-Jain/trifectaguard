@@ -139,13 +139,25 @@ def build():
         text = as_tool_output(t) if RNG.random() < EMBED_FRACTION else t
         rows.append({"text": text, "label": 0})
 
-    # HARD-NEGATIVE benign, oversampled 3x and half embedded in tool carriers,
-    # to kill the over-defense on legit secret/command-mentioning text.
-    hard = gen_hard_negatives(max(400, len(pos) // 6))
-    for t in hard * 3:
+    # HARD-NEGATIVE benign — the fix for over-defense on legit secret/command
+    # text. Combine template hard-negs + LLM-generated ones (data/benign_aug.jsonl
+    # if present), oversample heavily, half embedded in tool carriers.
+    hard = set(gen_hard_negatives(500))
+    try:
+        import json
+        for l in open("data/benign_aug.jsonl"):
+            r = json.loads(l)
+            if r.get("hard_negative"):
+                hard.add(r["text"])
+    except OSError:
+        pass
+    hard = list(hard)
+    # target ~20% of benign to be hard negatives
+    reps = max(1, int(len(neg) * 0.25 / max(1, len(hard))))
+    for t in hard * reps:
         text = as_tool_output(t) if RNG.random() < 0.5 else t
         rows.append({"text": text, "label": 0})
-    print(f"added {len(hard)} hard-negative benign (x3 oversampled)")
+    print(f"added {len(hard)} unique hard-negative benign (x{reps} oversampled)")
 
     # de-dup + split
     seen, uniq = set(), []

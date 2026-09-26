@@ -1,0 +1,11 @@
+total benign so far: 272
+total benign so far: 312
+total benign so far: 352
+total benign so far: 392
+total benign so far: 432
+total benign so far: 472
+total benign so far: 512
+total benign so far: 552
+total benign so far: 592
+total benign so far: 632
+done, 400 new, 632 total in data/benign_aug.jsonl

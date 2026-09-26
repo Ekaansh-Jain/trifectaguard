@@ -25,7 +25,10 @@ def load_pipeline():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--quick", action="store_true")
-    ap.add_argument("--epochs", type=int, default=3)
+    ap.add_argument("--epochs", type=int, default=2)
+    ap.add_argument("--cap", type=int, default=6000, help="max rows per source")
+    ap.add_argument("--maxlen", type=int, default=128)
+    ap.add_argument("--bs", type=int, default=16)
     args = ap.parse_args()
 
     from torch import nn
@@ -35,8 +38,7 @@ def main():
     from sklearn.metrics import f1_score, recall_score, precision_score
 
     ktr = load_pipeline()
-    if args.quick:
-        ktr.CAP_PER_SOURCE = 1200  # small for a fast pipeline check
+    ktr.CAP_PER_SOURCE = 1200 if args.quick else args.cap
     train_rows, test_rows = ktr.build()
     print(f"train={len(train_rows)} test={len(test_rows)} "
           f"train_inj={sum(r['label'] for r in train_rows)}")
@@ -50,7 +52,7 @@ def main():
 
     def prep(rows):
         ds = Dataset.from_list(rows)
-        return ds.map(lambda b: tok(b["text"], truncation=True, max_length=256),
+        return ds.map(lambda b: tok(b["text"], truncation=True, max_length=args.maxlen),
                       batched=True)
 
     train_ds, test_ds = prep(train_rows), prep(test_rows)
@@ -72,7 +74,7 @@ def main():
 
     targs = TrainingArguments(
         output_dir="detector-real", num_train_epochs=1 if args.quick else args.epochs,
-        per_device_train_batch_size=16, per_device_eval_batch_size=32,
+        per_device_train_batch_size=args.bs, per_device_eval_batch_size=args.bs*2,
         learning_rate=2e-5, weight_decay=0.01, eval_strategy="epoch",
         save_strategy="no", logging_steps=25, fp16=False, bf16=False,
         use_cpu=(device == "cpu"), report_to="none")
@@ -94,7 +96,7 @@ def main():
     dev = next(model.parameters()).device
 
     def predict(texts):
-        enc = tok(texts, truncation=True, max_length=256, padding=True, return_tensors="pt").to(dev)
+        enc = tok(texts, truncation=True, max_length=args.maxlen, padding=True, return_tensors="pt").to(dev)
         with torch.no_grad():
             return np.argmax(model(**enc).logits.cpu().numpy(), axis=1)
 
