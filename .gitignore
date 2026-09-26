@@ -22,3 +22,6 @@ results/gateway_audit.jsonl
 results/gateway_stderr.txt
 results/pilot_gateway.txt
 results/baselines_llm.txt
+detector-real/
+results/local_quick*.txt
+results/local_full.txt
