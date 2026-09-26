@@ -20,3 +20,4 @@ results/pilot_frontier.txt
 results/pilot_frontier2.txt
 results/gateway_audit.jsonl
 results/gateway_stderr.txt
+results/pilot_gateway.txt
