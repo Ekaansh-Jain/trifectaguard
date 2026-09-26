@@ -1,0 +1,7 @@
+total benign so far: 40
+total benign so far: 80
+total benign so far: 120
+total benign so far: 160
+total benign so far: 200
+total benign so far: 232
+done, 232 new, 232 total in data/benign_aug.jsonl
