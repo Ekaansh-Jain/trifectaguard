@@ -135,8 +135,16 @@ def main():
               f"lat={m['mean_latency_ms']:.0f}ms")
 
     Path("results").mkdir(exist_ok=True)
-    Path("results/detector_scores.json").write_text(json.dumps(
-        {"n": len(rows), "results": results}, indent=2))
+    out = Path("results/detector_scores.json")
+    combined = {"n": len(rows), "results": {}}
+    if out.exists():
+        try:
+            combined = json.loads(out.read_text())
+        except json.JSONDecodeError:
+            pass
+    combined["n"] = len(rows)
+    combined.setdefault("results", {}).update(results)  # accumulate detectors
+    out.write_text(json.dumps(combined, indent=2))
     print(f"\nn={len(rows)}  wrote results/detector_scores.json")
 
 

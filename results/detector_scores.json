@@ -1,0 +1,56 @@
+{
+  "n": 160,
+  "test_set": "data/injection_test.jsonl",
+  "results": {
+    "regex": {
+      "detection_rate": 0.637,
+      "false_positive_rate": 0.013,
+      "hard_neg_fp_rate": 0.025,
+      "precision": 0.981,
+      "f1": 0.773,
+      "accuracy": 0.812,
+      "hosted_latency_ms": 0,
+      "note": "circular: regex tuned to synthetic wrappers"
+    },
+    "prompt-guard-2-22m": {
+      "detection_rate": 0.087,
+      "false_positive_rate": 0.05,
+      "hard_neg_fp_rate": 0.1,
+      "precision": 0.636,
+      "f1": 0.154,
+      "accuracy": 0.519,
+      "hosted_latency_ms": 1830,
+      "note": "hosted latency != model latency (22M runs <5ms local)"
+    },
+    "prompt-guard-2-86m": {
+      "detection_rate": 0.138,
+      "false_positive_rate": 0.013,
+      "hard_neg_fp_rate": 0.025,
+      "precision": 0.917,
+      "f1": 0.239,
+      "accuracy": 0.562,
+      "hosted_latency_ms": 1816,
+      "note": "hosted latency != model latency"
+    },
+    "gpt-oss-safeguard-20b": {
+      "detection_rate": 0.74,
+      "false_positive_rate": 0.0,
+      "hard_neg_fp_rate": 0.0,
+      "precision": 1.0,
+      "f1": 0.85,
+      "accuracy": 0.88,
+      "hosted_latency_ms": 2458,
+      "note": "accurate reference, genuinely slow (reasoning model)"
+    },
+    "llm-judge gpt-oss-20b": {
+      "detection_rate": 0.76,
+      "false_positive_rate": 0.17,
+      "hard_neg_fp_rate": 0.35,
+      "precision": 0.7,
+      "f1": 0.79,
+      "accuracy": 0.8,
+      "hosted_latency_ms": 2418,
+      "note": "over-flags instruction-like benign text"
+    }
+  }
+}
