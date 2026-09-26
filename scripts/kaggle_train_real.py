@@ -45,7 +45,8 @@ def load_sources():
 
     def add(ds_id, split, text_key, label_val=None, label_key="label"):
         try:
-            d = load_dataset(ds_id, split=split)
+            # stream so we never hold a whole (261K-row) dataset in RAM
+            d = load_dataset(ds_id, split=split, streaming=True)
         except Exception as e:
             print(f"skip {ds_id}: {type(e).__name__}: {str(e)[:80]}")
             return
@@ -160,6 +161,8 @@ def main():
     BASE = "answerdotai/ModernBERT-base"
     tok = AutoTokenizer.from_pretrained(BASE)
     model = AutoModelForSequenceClassification.from_pretrained(BASE, num_labels=2)
+    use_fp16 = torch.cuda.is_available()  # CPU runtimes can't fp16
+    bs = 32 if use_fp16 else 8
 
     def prep(rows):
         ds = Dataset.from_list(rows)
@@ -183,10 +186,11 @@ def main():
                 "precision": precision_score(p.label_ids, pred)}
 
     args = TrainingArguments(
-        output_dir="detector-real", num_train_epochs=3, per_device_train_batch_size=32,
-        per_device_eval_batch_size=64, learning_rate=2e-5, weight_decay=0.01,
+        output_dir="detector-real", num_train_epochs=3, per_device_train_batch_size=bs,
+        per_device_eval_batch_size=bs * 2, learning_rate=2e-5, weight_decay=0.01,
         eval_strategy="epoch", save_strategy="epoch", logging_steps=50,
-        load_best_model_at_end=True, metric_for_best_model="f1", fp16=True, report_to="none")
+        load_best_model_at_end=True, metric_for_best_model="f1",
+        fp16=use_fp16, report_to="none")
     tkw = dict(model=model, args=args, train_dataset=train_ds, eval_dataset=test_ds,
                data_collator=DataCollatorWithPadding(tok), compute_metrics=compute)
     try:  # transformers>=4.46 renamed tokenizer -> processing_class
