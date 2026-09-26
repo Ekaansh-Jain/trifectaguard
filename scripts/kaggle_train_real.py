@@ -187,8 +187,12 @@ def main():
         per_device_eval_batch_size=64, learning_rate=2e-5, weight_decay=0.01,
         eval_strategy="epoch", save_strategy="epoch", logging_steps=50,
         load_best_model_at_end=True, metric_for_best_model="f1", fp16=True, report_to="none")
-    trainer = FocalTrainer(model=model, args=args, train_dataset=train_ds, eval_dataset=test_ds,
-                           tokenizer=tok, data_collator=DataCollatorWithPadding(tok), compute_metrics=compute)
+    tkw = dict(model=model, args=args, train_dataset=train_ds, eval_dataset=test_ds,
+               data_collator=DataCollatorWithPadding(tok), compute_metrics=compute)
+    try:  # transformers>=4.46 renamed tokenizer -> processing_class
+        trainer = FocalTrainer(**tkw, processing_class=tok)
+    except TypeError:
+        trainer = FocalTrainer(**tkw, tokenizer=tok)
     trainer.train()
     print("HELD-OUT METRICS:", trainer.evaluate())
     trainer.save_model("detector-real"); tok.save_pretrained("detector-real")

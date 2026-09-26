@@ -212,7 +212,7 @@ def main():
         eval_strategy="epoch", save_strategy="epoch", logging_steps=20,
         load_best_model_at_end=True, metric_for_best_model="f1", fp16=True, report_to="none")
     trainer = Trainer(model=model, args=args, train_dataset=train_ds, eval_dataset=test_ds,
-                      tokenizer=tok, data_collator=DataCollatorWithPadding(tok),
+                      data_collator=DataCollatorWithPadding(tok),
                       compute_metrics=compute)
     trainer.train()
     print("FINAL METRICS:", trainer.evaluate())
