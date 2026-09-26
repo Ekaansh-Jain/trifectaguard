@@ -75,15 +75,32 @@ def read_file(path: str) -> str:
     return FAKE_FILES.get(path, f"Error: no such file: {path}")
 
 
+# When set, sinks append their delivered payload here — this is the "outside
+# world." A real leak = the secret shows up in this file. If the gateway blocks a
+# sink, the upstream tool never runs, so nothing is delivered here.
+DELIVERY_LOG = os.environ.get("MCP_DELIVERY_LOG", "")
+
+
+def _deliver(payload: str):
+    if DELIVERY_LOG:
+        try:
+            with open(DELIVERY_LOG, "a") as f:
+                f.write(payload + "\n")
+        except OSError:
+            pass
+
+
 @mcp.tool()
 def post_comment(issue_number: int, body: str) -> str:
     """Post a comment on an issue. (SINK — leaves the trust boundary.)"""
+    _deliver(body)
     return json.dumps({"ok": True, "issue": issue_number, "posted": body[:80]})
 
 
 @mcp.tool()
 def send_message(to: str, body: str) -> str:
     """Send a message to an external address. (SINK — leaves the trust boundary.)"""
+    _deliver(f"{to}: {body}")
     return json.dumps({"ok": True, "to": to})
 
 

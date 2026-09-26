@@ -50,15 +50,16 @@ def _mcp_to_openai_tools(mcp_tools):
     return out
 
 
-async def _run(model_label, api_key, base_url, model_id, task, server_env):
+DEFAULT_SERVER_CMD = [sys.executable, "src/servers/github_mock.py"]
+
+
+async def _run(model_label, api_key, base_url, model_id, task, server_env,
+               server_cmd=None):
     result = RunResult(model=model_label, scenario=task["name"])
     client = OpenAI(api_key=api_key, base_url=base_url)
 
-    params = StdioServerParameters(
-        command=sys.executable,
-        args=["src/servers/github_mock.py"],
-        env=server_env,
-    )
+    cmd = server_cmd or DEFAULT_SERVER_CMD
+    params = StdioServerParameters(command=cmd[0], args=cmd[1:], env=server_env)
 
     async with AsyncExitStack() as stack:
         read, write = await stack.enter_async_context(stdio_client(params))
@@ -147,7 +148,8 @@ async def _run(model_label, api_key, base_url, model_id, task, server_env):
     return result
 
 
-def run_once(model_label, api_key, base_url, model_id, task, server_env) -> RunResult:
+def run_once(model_label, api_key, base_url, model_id, task, server_env,
+             server_cmd=None) -> RunResult:
     return asyncio.run(
-        _run(model_label, api_key, base_url, model_id, task, server_env)
+        _run(model_label, api_key, base_url, model_id, task, server_env, server_cmd)
     )
