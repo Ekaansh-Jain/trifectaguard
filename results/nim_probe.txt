@@ -1,0 +1,7 @@
+FAIL  mistralai/mistral-large-2-instruct -> NotFoundError: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': "Fun
+FAIL  z-ai/glm-5.3 -> APITimeoutError: Request timed out.
+FAIL  nvidia/llama-3.1-nemotron-70b-instruct -> NotFoundError: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': "Fun
+FAIL  nvidia/nemotron-nano-3-30b-a3b -> NotFoundError: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': "Fun
+FAIL  deepseek-ai/deepseek-v4.1-flash -> APITimeoutError: Request timed out.
+FAIL  ibm/granite-3.0-8b-instruct -> NotFoundError: Error code: 404 - {'status': 404, 'title': 'Not Found', 'detail': "Fun
+TOOLS meta/llama-3.2-11b-vision-instruct
