@@ -102,7 +102,16 @@ def main():
         if errors[model]:
             print(f"  (errors: {errors[model]})")
 
-    Path("results/summary.json").write_text(json.dumps(summary, indent=2))
+    # Merge into any existing summary so successive runs accumulate one chart.
+    out = Path("results/summary.json")
+    combined = {}
+    if out.exists():
+        try:
+            combined = json.loads(out.read_text())
+        except json.JSONDecodeError:
+            combined = {}
+    combined.update(summary)  # this run's models replace their own prior entries
+    out.write_text(json.dumps(combined, indent=2))
     print("\nWrote results/summary.json and raw traces to results/raw/")
 
 

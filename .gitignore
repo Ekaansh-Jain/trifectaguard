@@ -16,3 +16,4 @@ results/raw/
 .DS_Store
 results/pilot_run*.txt
 results/nim_probe.txt
+results/pilot_frontier.txt

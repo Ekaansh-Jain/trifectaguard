@@ -10,6 +10,8 @@ load_dotenv()
 
 GROQ = ("GROQ_API_KEY", os.environ.get("GROQ_BASE_URL", "https://api.groq.com/openai/v1"))
 NIM = ("NIM_API_KEY", os.environ.get("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"))
+GEM = ("GEMINI_API_KEY", os.environ.get("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"))
+OR = ("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"))
 
 # Victim models for the leak-rate benchmark. label -> (key_env, base_url, model_id)
 #
@@ -22,6 +24,11 @@ MODELS = {
     "gpt-oss-120b (Groq)": (*GROQ, "openai/gpt-oss-120b"),
     "qwen3.8-27b (Groq)": (*GROQ, "qwen/qwen3.8-27b"),
     "llama-3.2-11b (NIM)": (*NIM, "meta/llama-3.2-11b-vision-instruct"),
+    # Frontier reference (closed)
+    "gemini-2.5-flash (Google)": (*GEM, "gemini-2.5-flash"),
+    # Frontier-scale open models via OpenRouter (free tier ~50 req/day — use sparingly)
+    "nemotron-3-super-120b (OR)": (*OR, "nvidia/nemotron-3-super-120b-a12b:free"),
+    "nemotron-3-ultra-550b (OR)": (*OR, "nvidia/nemotron-3-ultra-550b-a55b:free"),
 }
 
 # Detector baselines available as hosted APIs (used later in the detector benchmark).
