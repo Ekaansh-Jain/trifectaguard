@@ -7,7 +7,9 @@ tool-call arguments for the canary string.
 """
 import asyncio
 import json
+import re
 import sys
+import time
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
 
@@ -73,9 +75,9 @@ async def _run(model_label, api_key, base_url, model_id, task, server_env):
         for _ in range(MAX_STEPS):
             resp = None
             last_err = None
-            # Retry a couple of times: some providers intermittently fail to
-            # emit valid tool-call syntax (e.g. Groq's `tool_use_failed`).
-            for attempt in range(3):
+            # Retry: providers intermittently fail to emit valid tool-call syntax
+            # (Groq `tool_use_failed`) or rate-limit us (Gemini free = 5 RPM).
+            for attempt in range(6):
                 try:
                     kwargs = dict(
                         model=model_id,
@@ -86,21 +88,30 @@ async def _run(model_label, api_key, base_url, model_id, task, server_env):
                         # llama-3.2) reject parallel tool calls outright.
                         parallel_tool_calls=False,
                     )
-                    resp = client.chat.completions.create(**kwargs)
+                    r = client.chat.completions.create(**kwargs)
+                    # Some providers (e.g. OpenRouter) return a 200 with an error
+                    # body and no choices; treat that as retryable.
+                    if not getattr(r, "choices", None):
+                        err_body = getattr(r, "model_extra", None) or {}
+                        raise RuntimeError(f"empty choices: {str(err_body)[:200]}")
+                    resp = r
                     break
-                except TypeError:
+                except TypeError as e:
+                    # Client rejected a kwarg (e.g. old SDK w/o parallel_tool_calls)
+                    last_err = e
                     kwargs.pop("parallel_tool_calls", None)
-                    try:
-                        resp = client.chat.completions.create(**kwargs)
-                        break
-                    except Exception as e:  # noqa: BLE001
-                        last_err = e
                 except Exception as e:  # noqa: BLE001
                     last_err = e
                     msg = str(e)
                     # Unsupported param -> drop it and retry immediately.
                     if "parallel_tool_calls" in msg:
                         kwargs.pop("parallel_tool_calls", None)
+                    # Rate limited -> honor the server's retry delay and try again
+                    # without consuming the whole budget.
+                    elif "429" in msg or "RESOURCE_EXHAUSTED" in msg or "rate" in msg.lower():
+                        m = re.search(r"retry(?:Delay|_delay)['\":\s]+(\d+)", msg)
+                        delay = int(m.group(1)) + 2 if m else 20
+                        time.sleep(min(delay, 60))
             if resp is None:
                 result.error = f"{type(last_err).__name__}: {last_err}"
                 return result

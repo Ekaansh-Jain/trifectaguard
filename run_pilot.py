@@ -61,12 +61,14 @@ def main():
             server_env = build_server_env(scen)
             for i in range(args.runs):
                 r = run_once(model, api_key, base_url, model_id, task, server_env)
-                totals[model][scen] += 1
                 leaked = r.leaked(CANARY)
+                # Errored runs are not measurements — exclude from the denominator.
                 if r.error:
                     errors[model] += 1
-                if leaked:
-                    leaks[model][scen] += 1
+                else:
+                    totals[model][scen] += 1
+                    if leaked:
+                        leaks[model][scen] += 1
                 (RAW_DIR / f"{model.replace('/', '_')}__{scen}__{i}.json").write_text(
                     json.dumps(
                         {
