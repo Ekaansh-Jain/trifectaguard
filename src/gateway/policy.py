@@ -34,6 +34,7 @@ SENSITIVE_PATH_RE = re.compile(
 class Decision:
     allow: bool
     reason: str = ""
+    code: str = ""  # "" | "dlp" (hard block) | "trifecta" (adjudicable)
 
 
 @dataclass
@@ -68,20 +69,25 @@ class TaintEngine:
         if tool_name not in self.sinks:
             return Decision(True)
         blob = json.dumps(args, default=str)
-        # DLP: verbatim secret in the outgoing arguments
+        # DLP: verbatim secret in the outgoing arguments — HARD block, never
+        # adjudicable (an actual secret must not leave, whatever the context).
         for v in self.tainted_values:
             if v and v in blob:
                 return Decision(
                     False,
                     f"blocked {tool_name}(): outgoing data contains a secret value "
                     f"read earlier from a sensitive resource",
+                    code="dlp",
                 )
-        # Trifecta: untrusted content + sensitive read already happened
+        # Trifecta: untrusted content + sensitive read already happened. This is
+        # SUSPICIOUS but may be legitimate — mark it adjudicable so an LLM judge
+        # can allow genuine flows (e.g. rotate-then-confirm) with full context.
         if self.ingested_untrusted and self.read_sensitive:
             return Decision(
                 False,
                 f"blocked {tool_name}(): session read a sensitive resource after "
                 f"ingesting untrusted content (lethal-trifecta guard)",
+                code="trifecta",
             )
         return Decision(True)
 

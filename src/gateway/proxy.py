@@ -26,8 +26,12 @@ from mcp.server.stdio import stdio_server
 import mcp.types as types
 
 from src.gateway.policy import build_engine, diff_pins, pin_descriptions
+from src.gateway.adjudicator import decide
 
 LOG_PATH = os.environ.get("GATEWAY_LOG", "results/gateway_audit.jsonl")
+# LLM adjudication on the trifecta path (the risky ~1% of calls). Off by default
+# so the gateway needs no API key unless you opt in.
+ADJUDICATE = os.environ.get("GATEWAY_ADJUDICATE", "0") == "1"
 
 
 def audit(event: str, **fields):
@@ -88,13 +92,18 @@ async def run(upstream_cmd: list[str]):
             async def call_tool(name: str, arguments: dict):
                 decision = engine.check(name, arguments or {})
                 if not decision.allow:
-                    audit("blocked", tool=name, reason=decision.reason,
-                          trace=engine.events[-3:])
-                    return [types.TextContent(
-                        type="text",
-                        text=f"[GATEWAY BLOCKED] {decision.reason}. "
-                             f"This action was stopped by the security gateway.",
-                    )]
+                    ctx = {"trace": engine.events[-6:], "sink_tool": name,
+                           "sink_args": arguments or {}}
+                    allow, reason = decide(decision, ctx, use_llm=ADJUDICATE)
+                    if not allow:
+                        audit("blocked", tool=name, reason=reason,
+                              code=decision.code, trace=engine.events[-3:])
+                        return [types.TextContent(
+                            type="text",
+                            text=f"[GATEWAY BLOCKED] {reason}. "
+                                 f"This action was stopped by the security gateway.",
+                        )]
+                    audit("adjudicated_allow", tool=name, reason=reason)
                 result = await upstream.call_tool(name, arguments or {})
                 text = _text_of(result)
                 engine.observe(name, arguments or {}, text)
