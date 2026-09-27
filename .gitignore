@@ -25,3 +25,7 @@ results/baselines_llm.txt
 detector-real/
 results/local_quick*.txt
 results/local_full.txt
+results/local_v3*.txt
+results/local_balanced.txt
+results/local_fast.txt
+results/augment*.txt

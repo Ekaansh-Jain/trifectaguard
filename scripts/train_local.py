@@ -74,8 +74,8 @@ def main():
 
     targs = TrainingArguments(
         output_dir="detector-real", num_train_epochs=1 if args.quick else args.epochs,
-        per_device_train_batch_size=args.bs, per_device_eval_batch_size=args.bs*2,
-        learning_rate=2e-5, weight_decay=0.01, eval_strategy="epoch",
+        per_device_train_batch_size=args.bs, per_device_eval_batch_size=8,
+        learning_rate=2e-5, weight_decay=0.01, eval_strategy="no",
         save_strategy="no", logging_steps=25, fp16=False, bf16=False,
         use_cpu=(device == "cpu"), report_to="none")
     tkw = dict(model=model, args=targs, train_dataset=train_ds, eval_dataset=test_ds,
@@ -86,19 +86,23 @@ def main():
         trainer = FocalTrainer(**tkw, tokenizer=tok)
 
     trainer.train()
+    # SAVE first (before eval) so an eval OOM can't lose the trained model
+    trainer.save_model("detector-real"); tok.save_pretrained("detector-real")
+    print("saved model to detector-real/")
     print("HELD-OUT METRICS:", trainer.evaluate())
-
-    if not args.quick:
-        trainer.save_model("detector-real"); tok.save_pretrained("detector-real")
 
     # frozen OOD
     model.eval()
     dev = next(model.parameters()).device
 
     def predict(texts):
-        enc = tok(texts, truncation=True, max_length=args.maxlen, padding=True, return_tensors="pt").to(dev)
-        with torch.no_grad():
-            return np.argmax(model(**enc).logits.cpu().numpy(), axis=1)
+        preds = []
+        for i in range(0, len(texts), 4):  # small batches to avoid MPS OOM
+            enc = tok(texts[i:i+4], truncation=True, max_length=args.maxlen,
+                      padding=True, return_tensors="pt").to(dev)
+            with torch.no_grad():
+                preds.extend(np.argmax(model(**enc).logits.cpu().numpy(), axis=1))
+        return np.array(preds)
 
     ip, bp = predict(ktr.OOD_INJECTIONS), predict(ktr.OOD_BENIGN)
     print(f"\n=== FROZEN OOD (novel styles) ===")
