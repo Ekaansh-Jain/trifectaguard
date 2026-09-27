@@ -12,6 +12,7 @@ out-of-distribution hand-set.
   cell 1:  !pip -q install -U "transformers>=4.48" datasets accelerate scikit-learn
   cell 2:  paste this whole file and run.
 """
+import os
 import random
 import numpy as np
 
