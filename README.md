@@ -9,11 +9,56 @@ A defensive-security project in three parts:
 2. **Detector benchmark** — compares hosted/open prompt-injection detectors
    (Prompt Guard 2, gpt-oss-safeguard, LLM judges, …) on *tool outputs*, on
    detection rate, false positives on hard negatives, and latency.
-3. **Gateway** — an MCP proxy with a deterministic taint tripwire
-   (untrusted source → sensitive sink ⇒ block/confirm) + tool-description hash
-   pinning, with the best detector plugged in.
+3. **Flow-control gateway** — one MCP server that fronts all of an agent's MCP
+   servers and enforces information-flow rules across them (below).
 
-Everything runs locally against a sandbox. No real accounts, tokens, or repos.
+The benchmarks run locally against a sandbox. No real accounts, tokens, or repos.
+
+## Flow-control gateway
+
+Prompt-injection detectors guess from wording and can be evaded (see RESULTS.md).
+The gateway instead tracks **what kind of data the session has touched** and
+stops it moving somewhere it shouldn't — whatever the injection said.
+
+```
+agent ──► gateway ──► github / filesystem / fetch / slack / …
+```
+
+- **Labels, across servers.** Tool results add labels to the session:
+  `untrusted` (issues, web pages, chat), `private` (private repos, local files),
+  `secret` (credentials). One process fronts every server, so a web page read
+  via fetch and a file read via filesystem are part of the same flow.
+- **Flow rules.** Before a sink call: `untrusted + private → public` asks the
+  user, `untrusted + secret → public/external` blocks, untrusted content steering
+  a write into CI/shell/agent config asks, and so on (`DEFAULT_FLOWS` in
+  `src/gateway/engine.py`).
+- **Ask, don't just block.** Uses MCP elicitation to show the user *why* ("private
+  data from gh/get_file_contents after untrusted content from gh/get_issue") with
+  allow once / allow for this session / block. Fails closed if the client can't prompt.
+- **DLP.** Any secret the session read is hard-blocked from leaving, including
+  base64/hex/URL-encoded/reversed/spaced-out copies.
+- **Rug-pull pins.** Tool definitions are pinned on disk; a changed definition
+  is quarantined until you re-pin.
+- **Monitor mode.** Log what would have been stopped, without stopping it.
+- **Presets** for the GitHub, filesystem, fetch and Slack servers, built from
+  their real tool lists. Unknown tools are treated as untrusted + unknown sink.
+
+```bash
+pip install mcp pyyaml
+cp gateway.example.yaml gateway.yaml                # list your servers + repos
+python -m src.gateway inspect -c gateway.yaml       # see how every tool is classified
+python -m src.gateway run -c gateway.yaml           # the command your MCP client runs
+python -m src.gateway run --policy github -- npx -y @modelcontextprotocol/server-github   # one server, no config
+```
+
+In your MCP client, replace the individual servers with one entry whose command
+is `python -m src.gateway run -c /abs/path/gateway.yaml` (cwd = this repo). With
+several servers, tools are exposed as `<server>__<tool>`.
+
+**Limits.** It controls flows, not intent: an approved or unlabelled flow is not
+inspected further, and a model can paraphrase a secret past DLP (the flow rules
+still apply). GitHub repo visibility comes from your config, not the API. Only
+tools are proxied (not resources/prompts), over stdio.
 
 ## Setup
 
@@ -37,6 +82,10 @@ Results: `results/summary.json` + raw traces in `results/raw/`.
 - `attacks/scenarios.py` — attack payloads (structure of real 2026 incidents)
 - `src/harness/` — provider registry + tool-calling agent
 - `run_pilot.py` — the benchmark runner
+- `src/gateway/` — flow-control gateway: `rules.py` (YAML policies), `engine.py`
+  (labels + flow rules, MCP-agnostic), `dlp.py`, `pins.py`, `gateway.py` (MCP
+  server), `policies/` (presets). `proxy.py` is the original single-server
+  research proxy used by the benchmarks.
 
 ## Ethics
 

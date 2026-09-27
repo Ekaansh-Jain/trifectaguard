@@ -1,0 +1,39 @@
+# MCP flow-control gateway config. Copy to gateway.yaml, then point your MCP
+# client at ONE server:  python -m src.gateway run -c /abs/path/gateway.yaml
+# Check how every tool is classified first:  python -m src.gateway inspect -c gateway.yaml
+
+mode: enforce          # monitor = log what would be blocked/asked, change nothing
+ask_fallback: block    # if the client can't show approval prompts: block | allow
+on_tool_change: block  # a tool definition changed since it was pinned: block | warn
+state_dir: ~/.mcp-gateway   # pins.json + audit.jsonl
+
+servers:
+  github:
+    command: npx
+    args: [-y, "@modelcontextprotocol/server-github"]
+    env: {GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"}
+    policy: github
+    vars:
+      public_repos: ["your-org/website", "your-org/docs"]  # content anyone can read
+      private_repos: ["your-org/*"]                        # writes here stay internal
+
+  filesystem:
+    command: npx
+    args: [-y, "@modelcontextprotocol/server-filesystem", "~/projects"]
+    policy: filesystem
+
+  fetch:
+    command: uvx
+    args: [mcp-server-fetch]
+    policy: fetch
+    vars:
+      trusted_urls: ["https://docs.python.org/*"]
+
+# Optional: replace the default flow rules (see DEFAULT_FLOWS in src/gateway/engine.py)
+# flows:
+#   - {name: lethal-trifecta, requires: [untrusted, private], sinks: [public, external, unknown], action: block}
+
+# Optional: flag injections in untrusted content with the fine-tuned detector.
+# Adds an "injection" label that makes any later sink call ask. Off by default:
+# see RESULTS.md for its limits.
+# detector: {path: detector-final}

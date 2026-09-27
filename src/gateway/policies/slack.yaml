@@ -1,0 +1,21 @@
+# @modelcontextprotocol/server-slack (verified tool list).
+# Channel messages are untrusted (anyone in the channel wrote them) and private.
+# Posting is internal unless the channel is shared with another organisation.
+name: slack
+vars:
+  external_channels: []  # Slack Connect / shared channel IDs
+
+x-post: &post
+  - when: {channel_id: $external_channels}
+    writes: external
+  - writes: internal
+
+tools:
+  slack_get_channel_history: {reads: [untrusted, private]}
+  slack_get_thread_replies: {reads: [untrusted, private]}
+  slack_list_channels: {reads: [private]}
+  slack_get_users: {reads: [private]}
+  slack_get_user_profile: {reads: [private]}
+  slack_post_message: *post
+  slack_reply_to_thread: *post
+  slack_add_reaction: {}

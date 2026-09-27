@@ -1,0 +1,63 @@
+# GitHub MCP server. Covers @modelcontextprotocol/server-github (verified tool
+# list) and the common names in github/github-mcp-server; the globs at the end
+# catch renamed or newer tools. Run `python -m src.gateway inspect` to see how
+# your server's tools are classified.
+#
+# Visibility is not in the tool args, so it comes from vars: repos you don't
+# list are treated as PRIVATE when read and PUBLIC when written to — the safe
+# assumption in both directions.
+name: github
+vars:
+  public_repos: []   # "owner/repo" globs whose content is public anyway
+  private_repos: []  # "owner/repo" globs where writes stay internal
+
+x-read: &read
+  - when: {"{owner}/{repo}": $public_repos}
+    reads: [untrusted]
+  - reads: [untrusted, private]
+
+x-write: &write
+  - when: {"{owner}/{repo}": $private_repos}
+    writes: internal
+  - writes: public
+
+tools:
+  create_repository:
+    - when: {private: ["true"]}
+      writes: internal
+    - writes: public
+  create_gist:
+    - when: {public: ["false"]}
+      writes: internal
+    - writes: public
+  get_me: {reads: [private]}
+
+  # sinks
+  add_issue_comment: *write
+  create_issue: *write
+  update_issue: *write
+  issue_write: *write
+  create_pull_request: *write
+  update_pull_request: *write
+  create_pull_request_review: *write
+  create_and_submit_pull_request_review: *write
+  merge_pull_request: *write
+  update_pull_request_branch: *write
+  create_or_update_file: *write
+  push_files: *write
+  delete_file: *write
+  create_branch: *write
+  fork_repository: *write
+
+  # sources (issue/PR/file text can be written by anyone who can open an issue)
+  get_*: *read
+  list_*: *read
+  search_*: *read
+  "*_read": *read
+
+  # anything else that writes
+  create_*: *write
+  update_*: *write
+  add_*: *write
+  delete_*: *write
+  "*_write": *write

@@ -1,0 +1,52 @@
+# @modelcontextprotocol/server-filesystem (verified tool list).
+# Local files are private; files matching secret_paths also mark the session as
+# holding credentials. Writes are local unless they land somewhere that runs
+# code (CI workflows, git hooks, shell startup files, agent configs).
+name: filesystem
+vars:
+  secret_paths: ["*.env", "*.env.*", "*/.env*", "*secret*", "*credential*",
+                 "*id_rsa*", "*id_ed25519*", "*.pem", "*.key", "*.p12",
+                 "*/.aws/*", "*/.ssh/*", "*/.netrc", "*/.npmrc", "*/.pypirc",
+                 "*/.docker/config.json", "*/.kube/config"]
+  # content someone else wrote, even though it's on your disk
+  untrusted_paths: ["*/node_modules/*", "*/site-packages/*", "*/Downloads/*"]
+  # add "*/package.json", "*/Makefile" for stricter setups (noisier for coding)
+  exec_paths: ["*/.github/workflows/*", "*/.git/hooks/*", "*/.bashrc", "*/.zshrc",
+               "*/.profile", "*/.bash_profile", "*/.zprofile", "*/.config/fish/*",
+               "*/Library/LaunchAgents/*", "*/.claude/*", "*/.cursor/*",
+               "*/.mcp.json", "*/.vscode/tasks.json", "*/crontab"]
+
+x-read: &read
+  - when: {path: $secret_paths}
+    reads: [private, secret]
+  - when: {paths: $secret_paths}
+    reads: [private, secret]
+  - when: {path: $untrusted_paths}
+    reads: [untrusted, private]
+  - when: {paths: $untrusted_paths}
+    reads: [untrusted, private]
+  - reads: [private]
+
+x-write: &write
+  - when: {path: $exec_paths}
+    writes: exec
+  - writes: local
+
+tools:
+  read_file: *read
+  read_text_file: *read
+  read_media_file: *read
+  read_multiple_files: *read
+  list_directory: {reads: [private]}
+  list_directory_with_sizes: {reads: [private]}
+  directory_tree: {reads: [private]}
+  search_files: {reads: [private]}
+  get_file_info: {reads: [private]}
+  list_allowed_directories: {}
+  write_file: *write
+  edit_file: *write
+  create_directory: {writes: local}
+  move_file:
+    - when: {destination: $exec_paths}
+      writes: exec
+    - writes: local

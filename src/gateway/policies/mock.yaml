@@ -1,0 +1,18 @@
+# The sandbox server in src/servers/github_mock.py.
+name: mock
+vars:
+  secret_paths: ["*secret*", "*.env", "*credential*", "*id_rsa*"]
+  public_paths: ["README.md"]
+
+tools:
+  list_issues: {reads: [untrusted]}
+  get_issue: {reads: [untrusted]}
+  fetch_url: {reads: [untrusted]}
+  read_file:
+    - when: {path: $secret_paths}
+      reads: [private, secret]
+    - when: {path: $public_paths}
+      reads: []
+    - reads: [private]
+  post_comment: {writes: public}
+  send_message: {writes: external}
