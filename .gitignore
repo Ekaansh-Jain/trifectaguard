@@ -29,3 +29,4 @@ results/local_v3*.txt
 results/local_balanced.txt
 results/local_fast.txt
 results/augment*.txt
+results/eval_external.txt
