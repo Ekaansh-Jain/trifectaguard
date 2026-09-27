@@ -28,14 +28,14 @@ servers:
     command: uvx
     args: [mcp-server-fetch]
     policy: fetch
+    vars:
+      trusted_urls: ["https://docs.python.org/*"]
 
   # a remote server: streamable HTTP by default, `transport: sse` for older ones
   # github-remote:
   #   url: https://api.githubcopilot.com/mcp/
   #   headers: {Authorization: "Bearer ${GITHUB_TOKEN}"}
   #   policy: github
-    vars:
-      trusted_urls: ["https://docs.python.org/*"]
 
 # Optional: replace the default flow rules (see DEFAULT_FLOWS in src/gateway/engine.py)
 # flows:
