@@ -1,0 +1,27 @@
+# Flow gateway for Claude Code (hook mode). Copy to hooks.yaml, edit, then:
+#   python -m src.gateway hooks-snippet -c hooks.yaml   → paste into ~/.claude/settings.json
+
+# Start in monitor mode: nothing is blocked, everything that WOULD be asked or
+# denied goes to ~/.mcp-gateway/audit.jsonl. Switch to enforce once it looks right.
+mode: monitor          # monitor | enforce
+strict_links: true     # after private data is read, opening links from untrusted content asks
+state_dir: ~/.mcp-gateway
+
+# Claude Code's own tools: Read, Write, Edit, WebFetch, Bash, …
+builtin:
+  policy: claude-code
+  vars:
+    public_paths: []   # e.g. ["/Users/you/oss/*"]: reading these isn't reading private data
+    trusted_urls: []   # e.g. ["https://docs.python.org/*"]
+
+# Your MCP servers, by the name Claude Code uses (see `claude mcp list`).
+# Servers not listed here are treated as untrusted with unknown destinations.
+servers:
+  # github:
+  #   policy: github
+  #   vars:
+  #     public_repos: ["your-org/website"]
+  #     private_repos: ["your-org/*"]
+  # filesystem: {policy: filesystem}
+  # fetch: {policy: fetch}
+  # slack: {policy: slack}
