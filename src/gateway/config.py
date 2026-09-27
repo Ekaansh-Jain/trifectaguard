@@ -9,8 +9,8 @@ from pathlib import Path
 
 import yaml
 
-from src.gateway.engine import DEFAULT_FLOWS
-from src.gateway.rules import ServerPolicy
+from .engine import DEFAULT_FLOWS
+from .rules import ServerPolicy
 
 
 @dataclass

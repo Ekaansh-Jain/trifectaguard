@@ -33,8 +33,8 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from src.gateway import dlp
-from src.gateway.rules import UNCLASSIFIED, Role, ServerPolicy
+from . import dlp
+from .rules import UNCLASSIFIED, Role, ServerPolicy
 
 SEVERITY = {"allow": 0, "ask": 1, "block": 2}
 ALL_SINKS = ["public", "external", "internal", "local", "exec", "privileged", "destructive", "unknown"]

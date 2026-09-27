@@ -55,6 +55,41 @@ python -m src.gateway run -c gateway.yaml           # the command your MCP clien
 python -m src.gateway run --policy github -- npx -y @modelcontextprotocol/server-github   # one server, no config
 ```
 
+### Three ways to run it (same engine, same policies)
+
+| | For | Verified |
+|---|---|---|
+| **Library** (`from flowguard import Guard`) | any Python agent: LangChain/LangGraph, OpenAI Agents SDK, your own loop | tool-integration tests with real LangChain and OpenAI Agents SDK tools; AgentDojo "library mode" numbers |
+| **Claude Code hooks** | Claude Code, including its built-in tools | real Claude Code session (RESULTS.md) |
+| **MCP proxy** | any MCP app: Claude Desktop, Cursor, … (local and remote servers) | scripted MCP client over stdio and HTTP; real-app check in `eval/mcp_client/desktop_test.py` |
+
+```bash
+pip install .            # library + Claude Code hooks
+pip install ".[mcp]"     # + the MCP proxy
+```
+
+### As a library
+
+```python
+from flowguard import Guard, ask_in_terminal
+
+guard = Guard({"tools": {
+    "read_inbox": {"reads": ["untrusted", "private"]},
+    "send_email": {"writes": "external", "destination": ["to"]},
+}}, on_ask=ask_in_terminal)          # default on_ask denies: nothing needing approval runs unattended
+guard.user_message(user_request)     # destinations the user typed are trusted
+
+@tool                                # LangChain's @tool or the Agents SDK's @function_tool go on top
+@guard.tool
+def send_email(to: str, body: str) -> str:
+    """Send an email."""
+```
+
+A refused call doesn't run; the tool returns a short explanation for the model
+(or raises `Blocked` with `blocked="raise"`). Policies can also be presets or
+YAML paths, one per tool source: `Guard({"mail": {...}, "fs": "filesystem"})`.
+One `Guard` per conversation.
+
 ### In Claude Code: hook mode (recommended there)
 
 In Claude Code the engine runs as hooks instead of a proxy. That way it sees

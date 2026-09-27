@@ -29,9 +29,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.gateway.config import Config
-from src.gateway.engine import FlowEngine
-from src.gateway.rules import ServerPolicy
+from .config import Config
+from .engine import FlowEngine
+from .rules import ServerPolicy
 
 BUILTIN = "claude-code"  # server name used for Claude Code's own tools
 SESSION_TTL_S = 7 * 24 * 3600

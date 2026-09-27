@@ -25,8 +25,8 @@ from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 import mcp.types as types
 
-from src.gateway.policy import build_engine, diff_pins, pin_descriptions
-from src.gateway.adjudicator import decide
+from .policy import build_engine, diff_pins, pin_descriptions
+from .adjudicator import decide
 
 LOG_PATH = os.environ.get("GATEWAY_LOG", "results/gateway_audit.jsonl")
 # LLM adjudication on the trifecta path (the risky ~1% of calls). Off by default

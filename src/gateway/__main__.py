@@ -18,9 +18,9 @@ import sys
 from contextlib import AsyncExitStack
 from pathlib import Path
 
-from src.gateway.config import Config
+from .config import Config
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[2]  # the checkout, when run as src.gateway
 
 
 def load(args) -> Config:
@@ -37,7 +37,10 @@ def load(args) -> Config:
 def hooks_snippet(config_path: str) -> dict:
     """The settings.json "hooks" block that runs hook mode for every tool."""
     config_path = str(Path(config_path).expanduser().resolve())
-    command = f"cd {ROOT} && {sys.executable} -m src.gateway hook -c {config_path}"
+    package = __package__ or "src.gateway"
+    command = f"{sys.executable} -m {package} hook -c {config_path}"
+    if package.startswith("src."):  # running from a checkout rather than an installed package
+        command = f"cd {ROOT} && {command}"
     handler = [{"type": "command", "command": command, "timeout": 30}]
     return {"hooks": {
         "UserPromptSubmit": [{"hooks": handler}],
@@ -47,8 +50,8 @@ def hooks_snippet(config_path: str) -> dict:
 
 
 async def inspect(cfg: Config):
-    from src.gateway.gateway import Gateway
-    from src.gateway.pins import fingerprint
+    from .gateway import Gateway
+    from .pins import fingerprint
     gw = Gateway(cfg)
     async with AsyncExitStack() as stack:
         await gw.connect(stack)
@@ -101,7 +104,7 @@ def main():
         if not path:
             sys.exit("need -c CONFIG (or MCP_GATEWAY_CONFIG)")
         if args.cmd == "hook":
-            from src.gateway.hook import main as hook_main
+            from .hook import main as hook_main
             hook_main(path)
         else:
             Config.load(path)  # fail now, not on the first tool call
@@ -111,14 +114,14 @@ def main():
     cfg = load(args)
     if args.cmd == "run":
         import anyio
-        from src.gateway.gateway import Gateway
+        from .gateway import Gateway
         with contextlib.suppress(KeyboardInterrupt):
             anyio.run(Gateway(cfg).serve)
     elif args.cmd == "inspect":
         import anyio
         anyio.run(inspect, cfg)
     elif args.cmd == "repin":
-        from src.gateway.pins import PinStore
+        from .pins import PinStore
         PinStore(cfg.state_dir / "pins.json").repin(args.server)
         print(f"cleared pins for {args.server or 'all servers'}; they re-pin on next start")
 

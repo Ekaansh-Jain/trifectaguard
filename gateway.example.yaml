@@ -28,6 +28,12 @@ servers:
     command: uvx
     args: [mcp-server-fetch]
     policy: fetch
+
+  # a remote server: streamable HTTP by default, `transport: sse` for older ones
+  # github-remote:
+  #   url: https://api.githubcopilot.com/mcp/
+  #   headers: {Authorization: "Bearer ${GITHUB_TOKEN}"}
+  #   policy: github
     vars:
       trusted_urls: ["https://docs.python.org/*"]
 

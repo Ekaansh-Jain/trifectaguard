@@ -44,3 +44,4 @@ results/system_test.txt
 # AgentDojo run logs / partial live runs
 results/agentdojo/*.log
 results/agentdojo/live_smoke.jsonl
+build/

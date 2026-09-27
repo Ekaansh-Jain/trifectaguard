@@ -33,9 +33,9 @@ from mcp.client.stdio import stdio_client
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from src.gateway.config import Config  # noqa: F401 — re-exported for callers
-from src.gateway.engine import FlowEngine, Verdict
-from src.gateway.pins import PinStore, fingerprint
+from .config import Config  # noqa: F401 — re-exported for callers
+from .engine import FlowEngine, Verdict
+from .pins import PinStore, fingerprint
 
 ASK_CHOICES = ["allow once", "allow for this session", "block"]
 CONNECT_TIMEOUT_S = 60
@@ -72,7 +72,7 @@ class Gateway:
         self.cfg = cfg
         detector = None
         if cfg.detector:
-            from src.gateway.detector import make_detector
+            from .detector import make_detector
             detector = make_detector(cfg.detector.get("path", "detector-final"), chunked=True)
         self.engine = FlowEngine(cfg.policies(), cfg.flows, detector, strict_links=cfg.strict_links)
         self.pins = PinStore(cfg.state_dir / "pins.json")
@@ -96,19 +96,32 @@ class Gateway:
             pass
 
     # ---- upstream connections ------------------------------------------------
+    async def _open(self, stack: AsyncExitStack, spec: dict):
+        """Transport for one upstream: a local command (stdio) or a remote URL
+        (streamable HTTP by default, `transport: sse` for older servers)."""
+        if "url" in spec:
+            headers = {k: str(v) for k, v in (spec.get("headers") or {}).items()}
+            if spec.get("transport", "http") == "sse":
+                from mcp.client.sse import sse_client
+                return await stack.enter_async_context(sse_client(spec["url"], headers=headers))
+            from mcp.client.streamable_http import streamablehttp_client
+            read, write, _ = await stack.enter_async_context(streamablehttp_client(spec["url"], headers=headers))
+            return read, write
+        cwd = Path(spec.get("cwd", self.cfg.base_dir)).expanduser()
+        if not cwd.is_absolute():
+            cwd = self.cfg.base_dir / cwd
+        params = StdioServerParameters(
+            command=spec["command"], args=spec.get("args", []),
+            env={**os.environ, **{k: str(v) for k, v in (spec.get("env") or {}).items()}},
+            cwd=str(cwd),
+        )
+        return await stack.enter_async_context(stdio_client(params))
+
     async def connect(self, stack: AsyncExitStack):
         for name, spec in self.cfg.servers.items():
             spec = _expand(spec)
-            cwd = Path(spec.get("cwd", self.cfg.base_dir)).expanduser()
-            if not cwd.is_absolute():
-                cwd = self.cfg.base_dir / cwd
-            params = StdioServerParameters(
-                command=spec["command"], args=spec.get("args", []),
-                env={**os.environ, **{k: str(v) for k, v in (spec.get("env") or {}).items()}},
-                cwd=str(cwd),
-            )
             try:
-                read, write = await stack.enter_async_context(stdio_client(params))
+                read, write = await self._open(stack, spec)
                 session = await stack.enter_async_context(ClientSession(read, write))
                 with anyio.fail_after(CONNECT_TIMEOUT_S):
                     await session.initialize()

@@ -105,4 +105,8 @@ def send_message(to: str, body: str) -> str:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    # MCP_TRANSPORT=streamable-http (with MCP_PORT) serves over HTTP, to test remote upstreams
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport != "stdio":
+        mcp.settings.port = int(os.environ.get("MCP_PORT", "8765"))
+    mcp.run(transport=transport)

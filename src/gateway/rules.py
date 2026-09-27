@@ -110,12 +110,17 @@ class ServerPolicy:
             presets = sorted(p.stem for p in PRESET_DIR.glob("*.yaml"))
             raise FileNotFoundError(f"no policy {spec!r} (presets: {', '.join(presets)})")
         doc = yaml.safe_load(path.read_text()) or {}
+        return cls.from_dict(doc, variables, default_name=path.stem)
+
+    @classmethod
+    def from_dict(cls, doc: dict, variables: dict | None = None, default_name: str = "policy") -> "ServerPolicy":
+        """A policy given inline, in the same shape as a policy file."""
         merged = {**(doc.get("vars") or {}), **(variables or {})}
         default = UNCLASSIFIED
         if "unclassified" in doc:
             u = doc["unclassified"] or {}
             default = Role(frozenset(u.get("reads", [])), u.get("writes"), "unclassified")
-        return cls(doc.get("name", path.stem), doc.get("tools"), merged, default)
+        return cls(doc.get("name", default_name), doc.get("tools"), merged, default)
 
     def classified(self, tool: str) -> bool:
         return tool in self._exact or any(fnmatch.fnmatchcase(tool, p) for p, _ in self._globs)
