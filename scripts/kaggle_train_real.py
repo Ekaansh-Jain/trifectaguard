@@ -43,7 +43,8 @@ def load_sources():
     from datasets import load_dataset
     pos, neg = [], []
 
-    def add(ds_id, split, text_key, label_val=None, label_key="label"):
+    def add(ds_id, split, text_key, label_val=None, label_key="label",
+            label_map=None, cap=None):
         try:
             # stream so we never hold a whole (261K-row) dataset in RAM
             d = load_dataset(ds_id, split=split, streaming=True)
@@ -55,12 +56,17 @@ def load_sources():
             t = r.get(text_key)
             if not t or len(t) < 8:
                 continue
-            lab = label_val if label_val is not None else r.get(label_key)
+            if label_val is not None:
+                lab = label_val
+            elif label_map is not None:
+                lab = label_map.get(r.get(label_key))
+            else:
+                lab = r.get(label_key)
             if lab is None:
                 continue
             (pos if int(lab) == 1 else neg).append(t)
             n += 1
-            if n >= CAP_PER_SOURCE:
+            if n >= (cap or CAP_PER_SOURCE):
                 break
         print(f"loaded {ds_id}: {n}")
 
@@ -70,6 +76,10 @@ def load_sources():
     add("xTRam1/safe-guard-prompt-injection", "train", "text")
     # pure-injection sources (all label 1)
     add("Lakera/gandalf_ignore_instructions", "train", "text", label_val=1)
+    # jailbreak-specific sources (the weakest category in eval)
+    add("jackhhao/jailbreak-classification", "train", "prompt",
+        label_key="type", label_map={"jailbreak": 1, "benign": 0})
+    add("rubend18/ChatGPT-Jailbreak-Prompts", "train", "Prompt", label_val=1)
     return pos, neg
 
 
@@ -190,9 +200,30 @@ def build():
     k = min(len(pos), int(len(neg) * 0.8))
     pos, neg = pos[:k], neg[:int(k / 0.8)]
 
+    # DILUTION augmentation: some injections buried in benign padding, so the
+    # detector learns to spot attacks hidden in long benign context (fixes the
+    # ~25% evasion found in adaptive eval).
+    _PAD = ("Thanks for the detailed write-up. Here is some context on the "
+            "deployment pipeline, the caching layer, and the latency work we "
+            "shipped last sprint. Everything below is routine project chatter. ")
+
+    def dilute(t):
+        # keep padding modest so the injection stays within the token window
+        # (otherwise it truncates away and the model learns "long text = attack")
+        pad = _PAD * RNG.randint(1, 2)
+        if RNG.random() < 0.5:
+            return pad + "\n\nP.S. " + t          # injection at end, still in-window
+        return t + "\n\n" + pad                    # injection at start, always seen
+
     rows = []
     for t in pos:
-        text = as_tool_output(t) if RNG.random() < EMBED_FRACTION else t
+        r = RNG.random()
+        if r < 0.20:
+            text = dilute(t)
+        elif r < 0.20 + EMBED_FRACTION:
+            text = as_tool_output(t)
+        else:
+            text = t
         rows.append({"text": text, "label": 1})
     for t in neg:
         text = as_tool_output(t) if RNG.random() < EMBED_FRACTION else t

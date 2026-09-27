@@ -33,3 +33,5 @@ results/eval_external.txt
 detector-holdout/
 results/adaptive.txt
 results/holdout*.txt
+detector-boosted/
+results/boosted*.txt
