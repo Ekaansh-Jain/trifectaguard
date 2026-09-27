@@ -123,9 +123,63 @@ def gen_hard_negatives(n):
     return list(out)
 
 
+def synthetic_indirect_attacks():
+    """Our tool-output/indirect attack styles (polite, roleplay, fake-tool,
+    social-eng, stego, multistep, markdown-exfil, override, base64, non-English).
+    Public datasets are mostly DIRECT chatbot jailbreaks and lack these, so the
+    detector misses subtle indirect attacks without them."""
+    import os
+    import sys
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    try:
+        from data.attack_styles import (STYLE_FAMILIES, EXTRA_PAYLOADS,
+                                        b64_variant, foreign_variant)
+        from data.seeds import PAYLOADS
+    except Exception as e:  # noqa: BLE001
+        print(f"synthetic_indirect_attacks: import failed ({type(e).__name__}: {e})")
+        return []
+    payloads = {i: list(PAYLOADS.get(i, [])) + list(EXTRA_PAYLOADS.get(i, []))
+                for i in set(PAYLOADS) | set(EXTRA_PAYLOADS)}
+    out = []
+    for fam, templates in STYLE_FAMILIES.items():
+        for tmpl in templates:
+            for intent, ps in payloads.items():
+                for p in ps:
+                    out.append(tmpl.format(p=p))
+    for intent in ("exfiltration", "payment", "destructive"):
+        for p in payloads.get(intent, []):
+            out.append(b64_variant(p)); out.append(foreign_variant(p))
+    return out
+
+
+def _words(s):
+    import re
+    return set(re.findall(r"[a-z0-9]+", s.lower()))
+
+
+def _too_similar_to_ood(text, ood_wordsets):
+    """Drop training items that leak the OOD test (word-Jaccard > 0.6)."""
+    w = _words(text)
+    if not w:
+        return False
+    for ow in ood_wordsets:
+        inter = len(w & ow)
+        if inter and inter / len(w | ow) > 0.6:
+            return True
+    return False
+
+
 def build():
     pos, neg = load_sources()
+    pos += synthetic_indirect_attacks()  # add indirect styles public data lacks
     pos, neg = dedup(pos), dedup(neg)
+    # honesty guard: remove any positive that nearly duplicates an OOD test item
+    ood_ws = [_words(t) for t in OOD_INJECTIONS]
+    before = len(pos)
+    pos = [p for p in pos if not _too_similar_to_ood(p, ood_ws)]
+    print(f"leakage filter removed {before - len(pos)} near-duplicate positives")
     RNG.shuffle(pos); RNG.shuffle(neg)
     # balance ~ 45/55 inj/benign (benign-leaning keeps false positives down)
     k = min(len(pos), int(len(neg) * 0.8))
