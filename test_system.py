@@ -17,10 +17,12 @@ real engine + detector + adjudicator (no live agent needed → deterministic).
 import argparse
 import time
 
-from attacks.gateway_suite import ALL_SCALED
+from attacks.gateway_suite import ALL_SCALED, ALL_GENERATED
 from src.gateway.policy import build_engine
 from src.gateway.adjudicator import decide
 from src.gateway.detector import make_detector
+
+SUITE = ALL_SCALED + ALL_GENERATED
 
 
 def context(case):
@@ -43,7 +45,7 @@ def run_case(case, detector, use_llm):
 
 def evaluate(detector, use_llm, label):
     rows = []
-    for c in ALL_SCALED:
+    for c in SUITE:
         blocked, ms, code = run_case(c, detector, use_llm)
         correct = (c["kind"] == "attack") == blocked
         rows.append({"name": c["name"], "kind": c["kind"], "blocked": blocked,
@@ -69,9 +71,9 @@ def main():
     ap.add_argument("--no-llm", action="store_true")
     args = ap.parse_args()
 
-    print(f"scaled suite: {len(ALL_SCALED)} cases "
-          f"({sum(c['kind']=='attack' for c in ALL_SCALED)} attacks, "
-          f"{sum(c['kind']=='legit' for c in ALL_SCALED)} legit)")
+    print(f"scaled suite: {len(SUITE)} cases "
+          f"({sum(c['kind']=='attack' for c in SUITE)} attacks, "
+          f"{sum(c['kind']=='legit' for c in SUITE)} legit)")
     print("loading detector...")
     detector = make_detector()
 

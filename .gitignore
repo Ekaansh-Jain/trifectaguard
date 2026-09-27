@@ -38,3 +38,5 @@ results/boosted*.txt
 detector-final/
 results/final_train.txt
 results/eval_boosted.txt
+results/all_tests.txt
+results/system_test.txt

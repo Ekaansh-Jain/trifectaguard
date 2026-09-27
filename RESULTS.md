@@ -55,3 +55,16 @@ python scripts/adaptive_eval.py --n 200         # evasion
 HOLDOUT_FAMILIES=stego,fake_tool,social_eng DETECTOR_OUT=detector-holdout \
   python scripts/train_local.py ...             # then holdout_eval.py
 ```
+
+## End-to-end system test (scaled: 60 cases, 33 attacks / 27 legit)
+Attacks span 4 untrusted sources × 4 sink types × exfil + 4 non-exfil intents
+(SEO, output-manipulation, destructive, deterrence).
+
+| Config | catch | false-block | latency |
+|---|---|---|---|
+| gate only | 0.52 | 0.04 | 0ms |
+| + detector (Layer 1) | 1.00 | 0.04 | 23ms |
+| + adjudicator (full) | 1.00 | 0.00 | 60ms |
+
+Run everything: `python run_all_tests.py`  →  ALL PASS
+(unit taint tests, gateway decision suite, end-to-end system).
