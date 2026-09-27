@@ -142,8 +142,13 @@ def synthetic_indirect_attacks():
         return []
     payloads = {i: list(PAYLOADS.get(i, [])) + list(EXTRA_PAYLOADS.get(i, []))
                 for i in set(PAYLOADS) | set(EXTRA_PAYLOADS)}
+    holdout = set(x for x in os.environ.get("HOLDOUT_FAMILIES", "").split(",") if x)
+    if holdout:
+        print(f"HOLDING OUT families from training: {sorted(holdout)}")
     out = []
     for fam, templates in STYLE_FAMILIES.items():
+        if fam in holdout:
+            continue
         for tmpl in templates:
             for intent, ps in payloads.items():
                 for p in ps:

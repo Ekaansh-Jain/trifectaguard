@@ -73,7 +73,7 @@ def main():
                 "precision": precision_score(p.label_ids, pred)}
 
     targs = TrainingArguments(
-        output_dir="detector-real", num_train_epochs=1 if args.quick else args.epochs,
+        output_dir=os.environ.get("DETECTOR_OUT","detector-real"), num_train_epochs=1 if args.quick else args.epochs,
         per_device_train_batch_size=args.bs, per_device_eval_batch_size=8,
         learning_rate=2e-5, weight_decay=0.01, eval_strategy="no",
         save_strategy="no", logging_steps=25, fp16=False, bf16=False,
@@ -87,8 +87,9 @@ def main():
 
     trainer.train()
     # SAVE first (before eval) so an eval OOM can't lose the trained model
-    trainer.save_model("detector-real"); tok.save_pretrained("detector-real")
-    print("saved model to detector-real/")
+    OUT=os.environ.get("DETECTOR_OUT","detector-real")
+    trainer.save_model(OUT); tok.save_pretrained(OUT)
+    print(f"saved model to {OUT}/")
     print("HELD-OUT METRICS:", trainer.evaluate())
 
     # frozen OOD

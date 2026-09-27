@@ -30,3 +30,6 @@ results/local_balanced.txt
 results/local_fast.txt
 results/augment*.txt
 results/eval_external.txt
+detector-holdout/
+results/adaptive.txt
+results/holdout*.txt
