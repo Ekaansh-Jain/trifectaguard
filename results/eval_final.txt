@@ -1,65 +1,39 @@
-Traceback (most recent call last):
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 409, in hf_raise_for_status
-    response.raise_for_status()
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/requests/models.py", line 1026, in raise_for_status
-    raise HTTPError(http_error_msg, response=self)
-requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url: https://huggingface.co/detector-final/resolve/main/tokenizer_config.json
+loaded neuralchemy/Prompt-injection-dataset [test]: 942
+loaded deepset/prompt-injections [test]: 116
+loaded xTRam1/safe-guard-prompt-injection [test]: 1500
 
-The above exception was the direct cause of the following exception:
+==== OVERALL (external held-out) ====
+n= 2558 pos= 1075 neg= 1483 | detection=0.854 fpr=0.013 precision=0.979 f1=0.912
 
-Traceback (most recent call last):
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/transformers/utils/hub.py", line 478, in cached_files
-    hf_hub_download(
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
-    return fn(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1010, in hf_hub_download
-    return _hf_hub_download_to_cache_dir(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1117, in _hf_hub_download_to_cache_dir
-    _raise_on_head_call_error(head_call_error, force_download, local_files_only)
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1658, in _raise_on_head_call_error
-    raise head_call_error
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1546, in _get_metadata_or_catch_error
-    metadata = get_hf_file_metadata(
-               ^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
-    return fn(*args, **kwargs)
-           ^^^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 1463, in get_hf_file_metadata
-    r = _request_wrapper(
-        ^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 286, in _request_wrapper
-    response = _request_wrapper(
-               ^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/file_download.py", line 310, in _request_wrapper
-    hf_raise_for_status(response)
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/huggingface_hub/utils/_http.py", line 459, in hf_raise_for_status
-    raise _format(RepositoryNotFoundError, message, response) from e
-huggingface_hub.errors.RepositoryNotFoundError: 401 Client Error. (Request ID: Root=1-6ab8d5dd-453e62985f99943431ffd5ac;c8b1c960-c857-483c-9f3d-22ac59d8a0eb)
+==== BY SOURCE ====
+Prompt-injection-dataset           n=  942 pos=  552 neg=  390 | detection=0.768 fpr=0.049 precision=0.957 f1=0.852
+prompt-injections                  n=  116 pos=   60 neg=   56 | detection=0.700 fpr=0.000 precision=1.000 f1=0.824
+safe-guard-prompt-injection        n= 1500 pos=  463 neg= 1037 | detection=0.976 fpr=0.001 precision=0.998 f1=0.987
 
-Repository Not Found for url: https://huggingface.co/detector-final/resolve/main/tokenizer_config.json.
-Please make sure you specified the correct `repo_id` and `repo_type`.
-If you are trying to access a private or gated repo, make sure you are authenticated. For more details, see https://huggingface.co/docs/huggingface_hub/authentication
-Invalid username or password.
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "<string>", line 5, in <module>
-  File "/Users/ekaanshjain/Desktop/mcp/scripts/eval_detector.py", line 64, in main
-    tok = AutoTokenizer.from_pretrained(MODEL_DIR)
-          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/transformers/models/auto/tokenization_auto.py", line 1058, in from_pretrained
-    tokenizer_config = get_tokenizer_config(pretrained_model_name_or_path, **kwargs)
-                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/transformers/models/auto/tokenization_auto.py", line 890, in get_tokenizer_config
-    resolved_config_file = cached_file(
-                           ^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/transformers/utils/hub.py", line 321, in cached_file
-    file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/ekaanshjain/.pyenv/versions/3.11.10/lib/python3.11/site-packages/transformers/utils/hub.py", line 510, in cached_files
-    raise OSError(
-OSError: detector-final is not a local folder and is not a valid model identifier listed on 'https://huggingface.co/models'
-If this is a private repository, make sure to pass a token having permission to this repo either by logging in with `hf auth login` or by passing `token=<your_token>`
+==== neuralchemy BY CATEGORY ====
+benign                     n=  381 pos=    0 neg=  381 | detection= --  fpr=0.045 precision=0.000 f1= -- 
+direct_injection           n=  314 pos=  314 neg=    0 | detection=0.774 fpr= --  precision=1.000 f1=0.873
+adversarial                n=   79 pos=   79 neg=    0 | detection=0.734 fpr= --  precision=1.000 f1=0.847
+jailbreak                  n=   50 pos=   50 neg=    0 | detection=0.700 fpr= --  precision=1.000 f1=0.824
+encoding                   n=   30 pos=   30 neg=    0 | detection=0.733 fpr= --  precision=1.000 f1=0.846
+training_extraction        n=   10 pos=   10 neg=    0 | detection=0.800 fpr= --  precision=1.000 f1=0.889
+edge_case                  n=    9 pos=    0 neg=    9 | detection= --  fpr=0.222 precision=0.000 f1= -- 
+agent_manipulation         n=    8 pos=    8 neg=    0 | detection=0.875 fpr= --  precision=1.000 f1=0.933
+token_smuggling            n=    7 pos=    7 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+context_confusion          n=    6 pos=    6 neg=    0 | detection=0.833 fpr= --  precision=1.000 f1=0.909
+control                    n=    5 pos=    5 neg=    0 | detection=0.400 fpr= --  precision=1.000 f1=0.571
+output_manipulation        n=    5 pos=    5 neg=    0 | detection=0.800 fpr= --  precision=1.000 f1=0.889
+prompt_injection           n=    4 pos=    4 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+response_manipulation      n=    4 pos=    4 neg=    0 | detection=0.750 fpr= --  precision=1.000 f1=0.857
+system_manipulation        n=    4 pos=    4 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+multi_turn                 n=    4 pos=    4 neg=    0 | detection=0.750 fpr= --  precision=1.000 f1=0.857
+rag_poisoning              n=    4 pos=    4 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+instruction_override       n=    4 pos=    4 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+persona_replacement        n=    3 pos=    3 neg=    0 | detection=0.667 fpr= --  precision=1.000 f1=0.800
+prompt_extraction          n=    3 pos=    3 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+system_extraction          n=    2 pos=    2 neg=    0 | detection=0.500 fpr= --  precision=1.000 f1=0.667
+payload_injection          n=    2 pos=    2 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+encoding_obfuscation       n=    1 pos=    1 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+indirect_injection         n=    1 pos=    1 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000
+many_shot                  n=    1 pos=    1 neg=    0 | detection=0.000 fpr= --  precision= --  f1= -- 
+token_injection            n=    1 pos=    1 neg=    0 | detection=1.000 fpr= --  precision=1.000 f1=1.000

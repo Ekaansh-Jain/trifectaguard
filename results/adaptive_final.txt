@@ -1,0 +1,11 @@
+base injections: 200, detected clean: 151 (76%)
+
+transform              detection-retained   evaded
+clean (baseline)         1.00              0.00
+benign padding           1.00              0.00
+zero-width chars         1.00              0.00
+homoglyphs               1.00              0.00
+letter spacing           1.00              0.00
+leetspeak                1.00              0.00
+base64 wrap              1.00              0.00
+instruction at end       1.00              0.00

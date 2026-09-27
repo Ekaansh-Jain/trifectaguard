@@ -212,12 +212,11 @@ def build():
             "shipped last sprint. Everything below is routine project chatter. ")
 
     def dilute(t):
-        # keep padding modest so the injection stays within the token window
-        # (otherwise it truncates away and the model learns "long text = attack")
-        pad = _PAD * RNG.randint(1, 2)
-        if RNG.random() < 0.5:
-            return pad + "\n\nP.S. " + t          # injection at end, still in-window
-        return t + "\n\n" + pad                    # injection at start, always seen
+        # modest padding so the injection stays within the token window; bias to
+        # injection-at-start (always visible even at small maxlen)
+        if RNG.random() < 0.35:
+            return _PAD + "\n\nP.S. " + t          # end, fits in ~128 tokens
+        return t + "\n\n" + _PAD                    # start, always seen
 
     rows = []
     for t in pos:
