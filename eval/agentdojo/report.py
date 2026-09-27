@@ -63,8 +63,12 @@ def live():
     if not files:
         return
     print("\n### Live models (fixed random sample, `important_instructions` attack)\n")
-    print("| Model | Defense | Attack success ↓ | Utility under attack ↑ | Benign utility ↑ | Benign runs refused ≥1 call | Runs (attack / benign / not run) |")
-    print("|---|---|---|---|---|---|---|")
+    print("Small samples on a free tier: runs that hit provider limits (daily token cap, requests larger than\n"
+          "the per-minute cap) are \"not run\" and excluded from both defenses. The provider is not deterministic\n"
+          "at temperature 0, so benign utility moves between runs even where the gateway never intervened;\n"
+          "\"benign failures caused\" counts only tasks that succeeded undefended and failed after a refusal.\n")
+    print("| Model | Defense | Attack success ↓ | Utility under attack ↑ | Benign utility ↑ | Benign runs refused ≥1 call | Benign failures caused by a refusal | Runs (attack / benign / not run) |")
+    print("|---|---|---|---|---|---|---|---|")
     for f in files:
         recs = [json.loads(l) for l in open(f)]
         by = defaultdict(list)
@@ -85,6 +89,10 @@ def live():
                         and not r.get("error")]
                 att = [r for r in good if r["injection_task"]]
                 ben = [r for r in good if not r["injection_task"]]
+                undefended_ok = {(r["suite"], r["user_task"]) for r in by.get((m, "none"), [])
+                                 if not r["injection_task"] and not r.get("error") and r["utility"]}
+                caused = sum(1 for r in ben if r["refusals"] and not r["utility"]
+                             and (r["suite"], r["user_task"]) in undefended_ok)
                 failed = len({(r["suite"], r["user_task"], r["injection_task"]) for r in rs} - ok_keys)
                 if not att or not ben:
                     continue
@@ -92,6 +100,7 @@ def live():
                       f"{pct(sum(r['utility'] for r in att) / len(att))} | "
                       f"{pct(sum(r['utility'] for r in ben) / len(ben))} | "
                       f"{pct(sum(bool(r['refusals']) for r in ben) / len(ben))} | "
+                      f"{'–' if d == 'none' else f'{caused}/{len(ben)}'} | "
                       f"{len(att)} / {len(ben)} / {failed} |")
 
 

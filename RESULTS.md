@@ -25,6 +25,24 @@ targets" (book the most expensive hotel, phish a teammate, visit a link): 81%
 of those 100 get through, because flow control governs where data and access
 go, not which legitimate option the agent picks.
 
+**Live models** (real agent, same policies; free-tier Groq, so small: the daily
+token cap stopped both runs, and every completed attack run is in the banking
+suite):
+
+| Model | Defense | Attack success | Benign runs with a refused call | Benign failures caused by a refusal |
+|---|---|---|---|---|
+| gpt-oss-120b | none | 7/12 | – | – |
+| gpt-oss-120b | flow control | **0/12** | 3/11 | 2/11 |
+| gpt-oss-20b | none | 6/12 | – | – |
+| gpt-oss-20b | flow control | **0/12** | 2/6 | 1/6 |
+
+Undefended, both models sent money to the attacker, leaked transaction details
+and changed the password; with flow control none of those went through.
+Benign utility also moved in runs where the gateway refused nothing (the
+provider isn't deterministic at temperature 0), so only failures after a
+refusal are attributed to it. `eval/agentdojo/live.py` resumes where it
+stopped; rerunning after the daily cap resets extends the sample.
+
 The detectors' low attack success is on AgentDojo's fixed `important_instructions`
 template, and it comes at the price of hiding clean tool outputs on 39–74% of
 benign tasks, which a real agent then can't complete.
