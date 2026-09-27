@@ -61,8 +61,9 @@ several servers, tools are exposed as `<server>__<tool>`.
 
 **On AgentDojo** (worst-case agent that obeys every injection), it lets through
 0.3% of data-theft attacks and none of the payment/access hijacks or deletions,
-with 20.6% of benign tasks needing one approval; it does not stop steering
-among legitimate options. Full comparison with detectors and tool filtering in
+with 30.9% of benign tasks needing an approval (44.3% as an MCP gateway, which
+can't see your request); it does not stop steering among legitimate options.
+An adaptive red-team suite against its own rules passes 20/20. Full comparison with detectors and tool filtering in
 [RESULTS.md](RESULTS.md).
 
 **Limits.** It controls flows, not intent: an approved or unlabelled flow is not

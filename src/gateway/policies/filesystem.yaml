@@ -10,6 +10,9 @@ vars:
                  "*/.docker/config.json", "*/.kube/config"]
   # content someone else wrote, even though it's on your disk
   untrusted_paths: ["*/node_modules/*", "*/site-packages/*", "*/Downloads/*"]
+  # folders other people can read (Dropbox, iCloud shared, a web root): a write
+  # there leaves your machine, so it is treated as external
+  shared_paths: []
   # add "*/package.json", "*/Makefile" for stricter setups (noisier for coding)
   exec_paths: ["*/.github/workflows/*", "*/.git/hooks/*", "*/.bashrc", "*/.zshrc",
                "*/.profile", "*/.bash_profile", "*/.zprofile", "*/.config/fish/*",
@@ -30,6 +33,8 @@ x-read: &read
 x-write: &write
   - when: {path: $exec_paths}
     writes: exec
+  - when: {path: $shared_paths}
+    writes: external
   - writes: local
 
 tools:

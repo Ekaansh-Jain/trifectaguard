@@ -9,8 +9,10 @@ tools:
   search_emails: {reads: [untrusted, private]}
   get_sent_emails: {reads: [private]}
   get_draft_emails: {reads: [private]}
-  search_contacts_by_name: {reads: [private]}
-  search_contacts_by_email: {reads: [private]}
+  # contacts are auto-collected from everyone who ever emailed you, so an
+  # attacker becomes a "contact" by sending one email
+  search_contacts_by_name: {reads: [untrusted, private]}
+  search_contacts_by_email: {reads: [untrusted, private]}
   get_current_day: {}
   search_calendar_events: {reads: [untrusted, private]}
   get_day_calendar_events: {reads: [untrusted, private]}
@@ -29,7 +31,8 @@ tools:
   add_calendar_event_participants: {writes: external, destination: [participants]}
   reschedule_calendar_event: {writes: internal}
   create_file: {writes: internal}
-  append_to_file: {writes: internal}
+  # an existing file may be shared with anyone; its id is the destination
+  append_to_file: {writes: external, destination: [file_id]}
   cancel_calendar_event: {writes: destructive}
   delete_email: {writes: destructive}
   delete_file: {writes: destructive}

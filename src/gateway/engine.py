@@ -90,7 +90,8 @@ SINK_TEXT = {
     "destructive": "a deletion",
     "unknown": "a destination of unknown visibility",
 }
-MIN_DEST_LEN = 3
+MIN_DEST_LEN = 1
+SHORT_DEST = 4  # shorter ids ("7", "42") count as trusted only if the user wrote them
 
 
 def _norm(text: str) -> str:
@@ -101,6 +102,16 @@ def _norm_dest(value) -> str:
     v = _norm(value).strip()
     v = re.sub(r"^[a-z][a-z0-9+.-]*://", "", v)  # scheme
     return v.rstrip("/")
+
+
+_TOKEN = r"a-z0-9_%+\-@"  # characters that continue an address/identifier
+
+
+def _contains(dest: str, text: str) -> bool:
+    """dest occurs in text as a whole token: 'smith@gmail.com' is not found in
+    'john.smith@gmail.com', and 'evil.example/4' is not found in '…/45'."""
+    pattern = rf"(?<![{_TOKEN}.]){re.escape(dest)}(?![{_TOKEN}]|\.[a-z0-9])"
+    return re.search(pattern, text) is not None
 
 
 @dataclass
@@ -116,13 +127,16 @@ class FlowEngine:
     flows: list = field(default_factory=lambda: list(DEFAULT_FLOWS))
     detector: object = None  # optional scan(text) -> bool
     strict_destinations: bool = False  # unseen destinations need approval too
+    strict_links: bool = True  # with private data in session, opening attacker-supplied links asks
 
     labels: dict = field(default_factory=dict)  # label -> "server/tool" that introduced it
     secrets: set = field(default_factory=set)
-    approvals: set = field(default_factory=set)  # (rule, server, tool) allowed for the session
+    approvals: set = field(default_factory=set)  # (server, tool, destinations) allowed for the session
     events: list = field(default_factory=list)
-    trusted_text: list = field(default_factory=list)  # user request + trusted tool output
+    user_text: list = field(default_factory=list)  # the user's own words (trust())
+    trusted_text: list = field(default_factory=list)  # output of tools that read no untrusted content
     untrusted_text: list = field(default_factory=list)  # (source, text) an attacker could write
+    tainted_writes: list = field(default_factory=list)  # (where, text) the agent stored after reading untrusted content
 
     def role(self, server: str, tool: str, args: dict) -> Role:
         policy: ServerPolicy | None = self.policies.get(server)
@@ -130,7 +144,7 @@ class FlowEngine:
 
     def trust(self, text: str):
         """Register text the user wrote (their request), for destination checks."""
-        self.trusted_text.append(_norm(text))
+        self.user_text.append(_norm(text))
 
     # ---- before the call -----------------------------------------------------
     def check(self, server: str, tool: str, args: dict) -> Verdict:
@@ -147,20 +161,30 @@ class FlowEngine:
                 f"{self.labels.get('secret', 'a private source')}",
             )
         dests = self._destinations(role, args)
+        approved = (server, tool, self._dest_key(dests)) in self.approvals
         worst = Verdict("allow")
         dest_trusted = False
         if dests and role.destination_carries_data:
-            # a URL copied verbatim from something already seen carries no new data
-            if all(self._seen_anywhere(d) for d in dests):
+            # Re-fetching a URL already seen sends no new data. Once the session
+            # holds private data, though, choosing WHICH attacker-supplied URL to
+            # open can leak it bit by bit, so only trusted URLs stay free then.
+            origins = [self._origin(d) for d in dests]
+            holds_private = self.strict_links and bool({"private", "secret"} & set(self.labels))
+            if all(o != "unseen" for o in origins) and (
+                    not holds_private or all(o == "trusted" for o in origins)):
                 return worst
         elif dests and role.writes not in INSIDE_BOUNDARY:
             origins = {d: self._origin(d) for d in dests}
             dest_trusted = all(o == "trusted" for o in origins.values())  # dests is non-empty
+            # An unseen destination (not in anything the session read) is only
+            # free in lenient mode and only before untrusted content arrived: an
+            # injection can spell an address out for the model to reassemble.
+            unseen_ok = not self.strict_destinations and "untrusted" not in self.labels
             bad = {d: o for d, o in origins.items()
-                   if o not in ("trusted", "unseen") or (o == "unseen" and self.strict_destinations)}
+                   if o != "trusted" and not (o == "unseen" and unseen_ok)}
             if bad:
                 d, o = next(iter(bad.items()))
-                worst = self._maybe(worst, DESTINATION_ACTION, "untrusted-destination", server, tool,
+                worst = self._maybe(worst, DESTINATION_ACTION, "untrusted-destination", approved,
                                     f"{where} targets {d!r}, which "
                                     + (f"appears only in untrusted content from {o}"
                                        if o != "unseen" else
@@ -172,20 +196,24 @@ class FlowEngine:
                 continue
             if flow.get("skip_if_destination_trusted") and dest_trusted:
                 continue
-            worst = self._maybe(worst, flow["action"], flow["name"], server, tool,
+            worst = self._maybe(worst, flow["action"], flow["name"], approved,
                                 self._explain(flow, where, role))
         return worst
 
-    def _maybe(self, worst: Verdict, action: str, rule: str, server: str, tool: str, reason: str) -> Verdict:
+    @staticmethod
+    def _maybe(worst: Verdict, action: str, rule: str, approved: bool, reason: str) -> Verdict:
         if SEVERITY[action] <= SEVERITY[worst.action]:
             return worst
-        if action == "ask" and (rule, server, tool) in self.approvals:
+        if action == "ask" and approved:
             return worst
         return Verdict(action, rule, reason)
 
-    def approve(self, verdict: Verdict, server: str, tool: str):
-        """Remember a user's 'allow for this session' for this rule and tool."""
-        self.approvals.add((verdict.rule, server, tool))
+    def approve(self, verdict: Verdict, server: str, tool: str, args: dict | None = None):
+        """Remember a user's 'allow for this session' for this tool AND these
+        destinations: approving an email to bob must not approve one to mallory.
+        Blocks are never approvable."""
+        dests = self._destinations(self.role(server, tool, args or {}), args or {})
+        self.approvals.add((server, tool, self._dest_key(dests)))
 
     # ---- destination provenance -----------------------------------------------
     @staticmethod
@@ -198,24 +226,38 @@ class FlowEngine:
                     out.append(str(v))
         return out
 
+    @staticmethod
+    def _dest_key(dests: list[str]) -> tuple:
+        return tuple(sorted(_norm_dest(d) for d in dests))
+
     def _origin(self, dest: str) -> str:
-        """'trusted' | '<server/tool>' (untrusted source) | 'unseen'."""
+        """'trusted' | '<where>' (attacker-influenced source) | 'unseen'.
+        Precedence: the user's words, then anything the agent itself stored after
+        reading untrusted content (so an injected address can't be laundered
+        through a file and read back as "trusted"), then trusted tool output,
+        then untrusted tool output."""
         d = _norm_dest(dest)
-        if any(d in t for t in self.trusted_text):
+        if any(_contains(d, t) for t in self.user_text):
+            return "trusted"
+        for where, text in self.tainted_writes:
+            if _contains(d, text):
+                return f"{where} (written after reading untrusted content)"
+        if len(d) >= SHORT_DEST and any(_contains(d, t) for t in self.trusted_text):
             return "trusted"
         for source, text in self.untrusted_text:
-            if d in text:
+            if _contains(d, text):
                 return source
         return "unseen"
-
-    def _seen_anywhere(self, dest: str) -> bool:
-        d = _norm_dest(dest)
-        return any(d in t for t in self.trusted_text) or any(d in t for _, t in self.untrusted_text)
 
     # ---- after the call ------------------------------------------------------
     def observe(self, server: str, tool: str, args: dict, text: str):
         role = self.role(server, tool, args)
         where = f"{server}/{tool}"
+        if role.writes in INSIDE_BOUNDARY and "untrusted" in self.labels:
+            # what the agent stores under untrusted influence stays untrusted when
+            # read back (destination args excluded: they are where, not what)
+            stored = {k: v for k, v in (args or {}).items() if k not in role.destination}
+            self.tainted_writes.append((where, _norm(json.dumps(stored, default=str))))
         for label in role.reads:
             self._add(label, where)
         if "untrusted" in role.reads:

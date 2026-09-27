@@ -50,6 +50,7 @@ class Config:
     mode: str = "enforce"  # enforce | monitor
     ask_fallback: str = "block"  # when the client can't show approval prompts
     on_tool_change: str = "block"  # block | warn
+    strict_links: bool = True  # with private data in session, opening attacker-supplied links asks
     flows: list = field(default_factory=lambda: list(DEFAULT_FLOWS))
     detector: dict | None = None
     base_dir: Path = Path(".")
@@ -62,7 +63,7 @@ class Config:
             raise ValueError(f"{path}: no servers configured")
         cfg = cls(servers=doc["servers"], base_dir=path.parent)
         cfg.state_dir = Path(os.path.expandvars(doc.get("state_dir", str(cfg.state_dir)))).expanduser()
-        for key in ("mode", "ask_fallback", "on_tool_change", "detector"):
+        for key in ("mode", "ask_fallback", "on_tool_change", "detector", "strict_links"):
             if key in doc:
                 setattr(cfg, key, doc[key])
         if "flows" in doc:
@@ -117,7 +118,7 @@ class Gateway:
         if cfg.detector:
             from src.gateway.detector import make_detector
             detector = make_detector(cfg.detector.get("path", "detector-final"), chunked=True)
-        self.engine = FlowEngine(cfg.policies(), cfg.flows, detector)
+        self.engine = FlowEngine(cfg.policies(), cfg.flows, detector, strict_links=cfg.strict_links)
         self.pins = PinStore(cfg.state_dir / "pins.json")
         self.upstreams: dict[str, ClientSession] = {}
         self.routes: dict[str, tuple[str, str]] = {}
@@ -256,7 +257,7 @@ class Gateway:
             return Verdict("block", verdict.rule, f"{verdict.reason} — approval prompt failed ({type(e).__name__})")
         choice = (res.content or {}).get("decision") if res.action == "accept" else None
         if choice == "allow for this session":
-            self.engine.approve(verdict, server, tool)
+            self.engine.approve(verdict, server, tool, args)
         if choice in ("allow once", "allow for this session"):
             return Verdict("allow", verdict.rule, f"user chose {choice!r}")
         return Verdict("block", verdict.rule, f"{verdict.reason} — declined by the user")

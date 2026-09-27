@@ -15,6 +15,8 @@ import sys
 CHECKS = [
     ("flow gateway: engine + policies + DLP + e2e over stdio",
      [sys.executable, "-m", "pytest", "-q", "tests/test_flow_engine.py", "tests/test_gateway_e2e.py"]),
+    ("adaptive red-team suite (attacks on the gateway's own rules)",
+     [sys.executable, "eval/redteam/adaptive.py"]),
     ("unit: taint engine", [sys.executable, "tests/test_taint.py"]),
     ("gateway decision suite (rules+LLM)", [sys.executable, "test_gateway_suite.py", "--llm"]),
     ("end-to-end system (detector+gate+adjudicator)", [sys.executable, "test_system.py"]),

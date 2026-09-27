@@ -14,18 +14,30 @@ reads; 591 attacks that succeed undefended, 97 benign tasks):
 | tool filter (oracle best case) | 16.2% | – | – |
 | AgentDojo PI detector (protectai) | 27.6% | – | **74.2%** |
 | our detector (ModernBERT) | 1.7% | – | **39.2%** |
-| **flow control (library mode)** | **13.9%** | 20.6% | – |
-| flow control (MCP-gateway mode) | 13.7% | 35.1% | – |
+| **flow control (library mode)** | **10.3%** | 30.9% | – |
+| flow control (MCP-gateway mode) | 10.0% | 44.3% | – |
+| flow control (library) + our detector | 0.8% | 41.2% | – |
 
 By what the attacker wants, flow control (library mode) lets through **0.3%**
 of data theft (1/299), **0%** of hijacked payments/access/contact (153) and
 **0%** of deletions (39), independent of the model and of the injection's
 wording. All of its remaining attack success is "steering to legitimate
-targets" (book the most expensive hotel, phish a teammate, visit a link): 81%
-of those 100 get through, because flow control governs where data and access
-go, not which legitimate option the agent picks.
+targets" (book the most expensive hotel, phish a teammate, drop a calendar
+entry): 60% of those 100 get through, because flow control governs where data
+and access go, not which legitimate option the agent picks. (Of the steering
+attacks it does stop, 11 count only because a legitimate page load needed
+approval; see eval/agentdojo/README.md.)
 
-**Live models** (real agent, same policies; free-tier Groq, so small: the daily
+**Adaptive red team** (`eval/redteam/adaptive.py`): attacks written against the
+rules themselves: laundering through shared files and the agent's own notes,
+look-alike addresses, spelled-out addresses, contacts poisoning, link-choice
+covert channels, approval reuse. The engine first stopped 10/20; after the fixes
+listed in eval/agentdojo/README.md it stops 20/20 with all 8 legitimate
+controls allowed. Those fixes cost 10 points of benign approvals on AgentDojo
+(20.6% → 30.9%), measured fix by fix. A new red team will find new routes:
+this suite is a regression test, not a proof.
+
+**Live models** (real agent, engine as before the red-team round; free-tier Groq, so small: the daily
 token cap stopped both runs, and every completed attack run is in the banking
 suite):
 

@@ -5,6 +5,8 @@
 mode: enforce          # monitor = log what would be blocked/asked, change nothing
 ask_fallback: block    # if the client can't show approval prompts: block | allow
 on_tool_change: block  # a tool definition changed since it was pinned: block | warn
+strict_links: true     # after private data is read, opening links from untrusted content asks
+                       # (stops link-choice leaks; false = fewer prompts when browsing)
 state_dir: ~/.mcp-gateway   # pins.json + audit.jsonl
 
 servers:

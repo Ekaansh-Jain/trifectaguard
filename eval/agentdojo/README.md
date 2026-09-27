@@ -80,6 +80,30 @@ through instead of 82/591, but 27/97 benign tasks need approval instead of
 20/97 (utility 73.2% vs 80.4%). The extra catches are phishing-style messages
 to teammates whose name happened to appear only in untrusted text.
 
+### Second round: adaptive red team (`eval/redteam/adaptive.py`)
+
+AgentDojo's attacks weren't written against these rules, so a second suite
+attacks the rules themselves (20 attack runs, 8 legitimate controls, library
+and MCP mode). Before this round the engine stopped 10/20 and wrongly asked on
+2/8 controls; after it, 20/20 and 8/8. Changes, each with its AgentDojo cost
+measured by ablation (library mode, share of 97 benign tasks needing approval):
+
+| Fix | Bypass it closes | Approval cost |
+|---|---|---|
+| destinations match whole tokens | `smith@gmail.com` trusted because the user typed `john.smith@gmail.com` | together +2.1 pts |
+| user's words > agent's own writes > trusted output | attacker address saved to a file, read back as "trusted" | (same) |
+| unseen destinations ask once untrusted content arrived (MCP mode) | address spelled out ("mark dot black at gmail") and reassembled | (same) |
+| "allow for this session" is scoped to the destination | approving bob also approved mallory; conversely a second rule re-asked for bob | (same) |
+| workspace: contacts are untrusted | AgentDojo builds contacts from everyone who emailed you | +1.0 pt |
+| workspace: `append_to_file` is external, destination = file | appending private data to a file the attacker shared with you | +4.1 pts |
+| `strict_links`: after private data is read, opening links from untrusted content asks | leaking data bit by bit through which attacker link gets opened | +4.1 pts |
+
+`strict_links` also stops AgentDojo attacks: 10 "visit this link" hijacks at the
+attacker's own call. A further 11 AgentDojo pairs count as stopped only because
+the *legitimate* page load needed approval, so the injection was never read;
+those are not real wins and the benign task fails too. It is a config switch
+(`strict_links: false` for fewer prompts when browsing).
+
 ## What flow control does not stop
 
 By design it controls *where data and access go*, not *what the agent decides*:
@@ -87,8 +111,9 @@ By design it controls *where data and access go*, not *what the agent decides*:
 - steering among legitimate options (book the most expensive hotel on the
   platform, create a harmless-looking calendar entry);
 - wrong content sent to a legitimate recipient (a phishing link to a teammate);
-- visiting a link that appeared in untrusted content (allowed, because opening
-  a link from a message is normal and sends no private data);
+- visiting a link that appeared in untrusted content *before* any private data
+  was read (allowed: opening a link from a message is normal and has nothing
+  to leak yet);
 - text-only manipulation of the final answer.
 
 These are integrity attacks; stopping them needs either a human in the loop or
