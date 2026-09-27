@@ -1,0 +1,35 @@
+# AgentDojo "workspace" suite (email, calendar, cloud drive).
+# Written from tool semantics only, before looking at any injection task:
+# anything another person can write to you (emails, invites, shared files) is
+# untrusted; your own drafts/sent mail/contacts are private but not untrusted.
+name: workspace
+tools:
+  get_unread_emails: {reads: [untrusted, private]}
+  get_received_emails: {reads: [untrusted, private]}
+  search_emails: {reads: [untrusted, private]}
+  get_sent_emails: {reads: [private]}
+  get_draft_emails: {reads: [private]}
+  search_contacts_by_name: {reads: [private]}
+  search_contacts_by_email: {reads: [private]}
+  get_current_day: {}
+  search_calendar_events: {reads: [untrusted, private]}
+  get_day_calendar_events: {reads: [untrusted, private]}
+  list_files: {reads: [untrusted, private]}
+  get_file_by_id: {reads: [untrusted, private]}
+  search_files: {reads: [untrusted, private]}
+  search_files_by_filename: {reads: [untrusted, private]}
+
+  send_email: {writes: external, destination: [recipients, cc, bcc]}
+  share_file: {writes: external, destination: [email]}
+  create_calendar_event:
+    - when: {participants: [""]}
+      writes: internal
+    - writes: external
+      destination: [participants]
+  add_calendar_event_participants: {writes: external, destination: [participants]}
+  reschedule_calendar_event: {writes: internal}
+  create_file: {writes: internal}
+  append_to_file: {writes: internal}
+  cancel_calendar_event: {writes: destructive}
+  delete_email: {writes: destructive}
+  delete_file: {writes: destructive}

@@ -18,13 +18,20 @@ first variant whose `when` conditions hold decides the tool's role:
 
 Condition values are glob patterns (case-insensitive); `$name` expands to a list
 from the policy's `vars`, which the gateway config can override per server. A
-list-valued argument (e.g. `paths`) matches if any element does.
+list-valued argument (e.g. `paths`) matches if any element does; "" matches an
+absent or empty argument.
 
 Labels are free-form, but the default flow rules understand:
   untrusted — content a third party could have written (issues, web pages)
   private   — data the user would not publish (private repos, local files)
   secret    — credentials (set by the engine when it sees secret values)
-Write classes: public | external | internal | local | exec | unknown.
+Write classes: public | external | internal | local | exec | privileged
+(grants access / changes an account) | destructive (deletes) | unknown.
+
+A sink can name its `destination` args (recipients, IBAN, URL, …) so the engine
+can check where the destination came from: the user, trusted data, or text an
+attacker could have written. Set `destination_carries_data: true` for fetch-like
+tools whose destination (a URL) can itself smuggle data out.
 
 This module knows nothing about MCP, so the same policies can guard any agent's
 tool calls.
@@ -37,7 +44,7 @@ from pathlib import Path
 import yaml
 
 PRESET_DIR = Path(__file__).parent / "policies"
-WRITE_CLASSES = {"public", "external", "internal", "local", "exec", "unknown"}
+WRITE_CLASSES = {"public", "external", "internal", "local", "exec", "privileged", "destructive", "unknown"}
 
 
 @dataclass(frozen=True)
@@ -46,6 +53,8 @@ class Role:
     writes: str | None = None  # destination class, or None if not a sink
     rule: str = ""  # which policy entry matched, for the audit log
     conditional: bool = False  # the entry has several variants (role depends on args)
+    destination: tuple = ()  # arg names naming where the data/action goes
+    destination_carries_data: bool = False  # e.g. a URL that can encode data
 
 
 # A tool no policy mentions: its output could say anything and it could send
@@ -65,6 +74,8 @@ _FMT = _Args()
 
 def _glob_any(value, patterns) -> bool:
     values = value if isinstance(value, (list, tuple)) else [value]
+    # an absent/empty argument matches the pattern "" (e.g. no participants)
+    values = ["" if v is None else v for v in values] or [""]
     return any(
         fnmatch.fnmatchcase(str(v).lower(), str(p).lower())
         for v in values
@@ -125,6 +136,8 @@ class ServerPolicy:
                     v.get("writes"),
                     f"{self.name}:{key}" + (f"#{i}" if len(variants) > 1 else ""),
                     len(variants) > 1,
+                    tuple(v.get("destination", ())),
+                    bool(v.get("destination_carries_data", False)),
                 )
         # every variant was conditional and none matched: fall back to the
         # conservative default rather than silently treating it as harmless

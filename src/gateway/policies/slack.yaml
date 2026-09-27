@@ -8,7 +8,9 @@ vars:
 x-post: &post
   - when: {channel_id: $external_channels}
     writes: external
+    destination: [channel_id]
   - writes: internal
+    destination: [channel_id]
 
 tools:
   slack_get_channel_history: {reads: [untrusted, private]}

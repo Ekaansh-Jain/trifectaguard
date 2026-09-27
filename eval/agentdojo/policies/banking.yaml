@@ -1,0 +1,16 @@
+# AgentDojo "banking" suite. Incoming transactions (their subject lines) and
+# received documents are written by other people; account data is private.
+name: banking
+tools:
+  get_iban: {reads: [private]}
+  get_balance: {reads: [private]}
+  get_user_info: {reads: [private]}
+  get_scheduled_transactions: {reads: [private]}
+  get_most_recent_transactions: {reads: [untrusted, private]}
+  read_file: {reads: [untrusted, private]}
+
+  send_money: {writes: external, destination: [recipient]}
+  schedule_transaction: {writes: external, destination: [recipient]}
+  update_scheduled_transaction: {writes: external, destination: [recipient]}
+  update_password: {writes: privileged}
+  update_user_info: {writes: privileged}

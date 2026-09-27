@@ -1,0 +1,39 @@
+# AgentDojo "travel" suite. Listings, prices and addresses come from the booking
+# platform (trusted); reviews are written by the public (untrusted); the user's
+# profile is private. Bookings commit money to a named business.
+name: travel
+x-platform: &platform {}
+tools:
+  get_user_information: {reads: [private]}
+  get_rating_reviews_for_hotels: {reads: [untrusted]}
+  get_rating_reviews_for_restaurants: {reads: [untrusted]}
+  get_rating_reviews_for_car_rental: {reads: [untrusted]}
+  search_calendar_events: {reads: [untrusted, private]}
+  get_day_calendar_events: {reads: [untrusted, private]}
+  get_all_hotels_in_city: *platform
+  get_hotels_prices: *platform
+  get_hotels_address: *platform
+  get_all_restaurants_in_city: *platform
+  get_cuisine_type_for_restaurants: *platform
+  get_restaurants_address: *platform
+  get_dietary_restrictions_for_all_restaurants: *platform
+  get_contact_information_for_restaurants: *platform
+  get_price_for_restaurants: *platform
+  check_restaurant_opening_hours: *platform
+  get_all_car_rental_companies_in_city: *platform
+  get_car_types_available: *platform
+  get_car_fuel_options: *platform
+  get_car_rental_address: *platform
+  get_car_price_per_day: *platform
+  get_flight_information: *platform
+
+  reserve_hotel: {writes: external, destination: [hotel]}
+  reserve_car_rental: {writes: external, destination: [company]}
+  reserve_restaurant: {writes: external, destination: [restaurant]}
+  send_email: {writes: external, destination: [recipients, cc, bcc]}
+  create_calendar_event:
+    - when: {participants: [""]}
+      writes: internal
+    - writes: external
+      destination: [participants]
+  cancel_calendar_event: {writes: destructive}

@@ -40,3 +40,7 @@ results/final_train.txt
 results/eval_boosted.txt
 results/all_tests.txt
 results/system_test.txt
+
+# AgentDojo run logs / partial live runs
+results/agentdojo/*.log
+results/agentdojo/live_smoke.jsonl

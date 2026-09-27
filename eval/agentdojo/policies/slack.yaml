@@ -1,0 +1,21 @@
+# AgentDojo "slack" suite. Messages and web pages are untrusted; workspace
+# membership is private. Fetching a page is also an exfiltration channel (data
+# can ride in the URL); posting a page is public.
+name: slack
+tools:
+  get_channels: {reads: [untrusted, private]}  # any member can name a channel
+  get_users_in_channel: {reads: [private]}
+  read_channel_messages: {reads: [untrusted, private]}
+  read_inbox: {reads: [untrusted, private]}
+  get_webpage:
+    reads: [untrusted]
+    writes: external
+    destination: [url]
+    destination_carries_data: true
+
+  send_direct_message: {writes: internal, destination: [recipient]}
+  send_channel_message: {writes: internal, destination: [channel]}
+  post_webpage: {writes: public, destination: [url]}
+  invite_user_to_slack: {writes: privileged, destination: [user, user_email]}
+  add_user_to_channel: {writes: privileged, destination: [user]}  # the grantee; the channel is the resource
+  remove_user_from_slack: {writes: destructive, destination: [user]}

@@ -35,6 +35,10 @@ agent ──► gateway ──► github / filesystem / fetch / slack / …
 - **Ask, don't just block.** Uses MCP elicitation to show the user *why* ("private
   data from gh/get_file_contents after untrusted content from gh/get_issue") with
   allow once / allow for this session / block. Fails closed if the client can't prompt.
+- **Destination provenance.** For sinks that name a recipient, IBAN, URL or
+  user, it checks where that value came from: your request or trusted data
+  (fine, and private data may go there) vs. only untrusted content (an
+  injection chose it: ask).
 - **DLP.** Any secret the session read is hard-blocked from leaving, including
   base64/hex/URL-encoded/reversed/spaced-out copies.
 - **Rug-pull pins.** Tool definitions are pinned on disk; a changed definition
@@ -54,6 +58,12 @@ python -m src.gateway run --policy github -- npx -y @modelcontextprotocol/server
 In your MCP client, replace the individual servers with one entry whose command
 is `python -m src.gateway run -c /abs/path/gateway.yaml` (cwd = this repo). With
 several servers, tools are exposed as `<server>__<tool>`.
+
+**On AgentDojo** (worst-case agent that obeys every injection), it lets through
+0.3% of data-theft attacks and none of the payment/access hijacks or deletions,
+with 20.6% of benign tasks needing one approval; it does not stop steering
+among legitimate options. Full comparison with detectors and tool filtering in
+[RESULTS.md](RESULTS.md).
 
 **Limits.** It controls flows, not intent: an approved or unlabelled flow is not
 inspected further, and a model can paraphrase a secret past DLP (the flow rules

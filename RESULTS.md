@@ -1,4 +1,35 @@
-# Detector evaluation results
+# Results
+
+## AgentDojo (v1.2.2): flow control vs. detectors vs. tool filtering
+
+Method, policies and disclosed post-hoc changes: [eval/agentdojo/README.md](eval/agentdojo/README.md).
+Tables regenerate with `python eval/agentdojo/report.py`.
+
+**Worst-case agent** (does the user task perfectly, obeys every injection it
+reads; 591 attacks that succeed undefended, 97 benign tasks):
+
+| Defense | Attack success ↓ | Benign tasks needing approval | Benign tasks with clean data redacted |
+|---|---|---|---|
+| no defense | 100% | – | – |
+| tool filter (oracle best case) | 16.2% | – | – |
+| AgentDojo PI detector (protectai) | 27.6% | – | **74.2%** |
+| our detector (ModernBERT) | 1.7% | – | **39.2%** |
+| **flow control (library mode)** | **13.9%** | 20.6% | – |
+| flow control (MCP-gateway mode) | 13.7% | 35.1% | – |
+
+By what the attacker wants, flow control (library mode) lets through **0.3%**
+of data theft (1/299), **0%** of hijacked payments/access/contact (153) and
+**0%** of deletions (39), independent of the model and of the injection's
+wording. All of its remaining attack success is "steering to legitimate
+targets" (book the most expensive hotel, phish a teammate, visit a link): 81%
+of those 100 get through, because flow control governs where data and access
+go, not which legitimate option the agent picks.
+
+The detectors' low attack success is on AgentDojo's fixed `important_instructions`
+template, and it comes at the price of hiding clean tool outputs on 39–74% of
+benign tasks, which a real agent then can't complete.
+
+## Detector evaluation
 
 The Layer-1 injection detector, fine-tuned from ModernBERT-base, evaluated on data
 it **never trained on**. Trained locally on Apple MPS. "Data beat architecture":
@@ -13,9 +44,21 @@ out-of-distribution detection from 33% to ~85–93% at the same architecture.
 | External false-positive rate | **0.013** | ~4.5% on the hardest external benign |
 | F1 | 0.912 | |
 | Novel-family transfer | **0.90–0.97** | attack styles fully held out of training |
-| Evasion robustness | **100%** | zero-width, homoglyph, spacing, leet, base64, **dilution** |
+| Evasion robustness | ~~100%~~ see correction | zero-width, homoglyph, spacing, leet, base64, dilution |
 
 For reference, Prompt Guard 2 scored **0.14** detection on the tool-output task.
+
+> **Corrections (2026-09-28).**
+> - *Dilution:* the 100% held only for the padding sentence used in the eval,
+>   which is nearly the same as the training padding. One ordinary 73-token
+>   bug-report paragraph before or after an obvious injection makes
+>   `detector-final` miss it, within its 128-token window.
+> - *False positives:* the 1.3% external FPR does not carry over to agent tool
+>   outputs. On AgentDojo it flags at least one clean tool output in 39% of
+>   benign tasks (chunked scanning; see above).
+>
+> The detector is therefore an optional signal in the gateway (off by default),
+> not a blocking layer.
 
 ## External held-out (neuralchemy + deepset/xTRam1 test splits), n=2,558
 - OVERALL: detection 0.854, FPR 0.013, precision 0.979, F1 0.912

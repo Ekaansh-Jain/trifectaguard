@@ -1,7 +1,8 @@
 # mcp-server-fetch (verified tool list).
 # A fetched page is untrusted. The request itself is also an exfiltration
 # channel: data can ride out in the URL path or query, so fetch is an external
-# sink too — unless the URL matches trusted_urls.
+# sink too — unless the URL matches trusted_urls, or was copied verbatim from
+# something the session already read (then the URL carries no new data).
 name: fetch
 vars:
   trusted_urls: []  # e.g. "https://docs.python.org/*"
@@ -12,3 +13,5 @@ tools:
       reads: [untrusted]
     - reads: [untrusted]
       writes: external
+      destination: [url]
+      destination_carries_data: true  # fetching a URL you've already seen sends nothing new
