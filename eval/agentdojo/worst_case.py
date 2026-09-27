@@ -168,6 +168,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--detectors", action="store_true", help="also run both prompt-injection detectors")
     ap.add_argument("--suites", nargs="*", default=None)
+    ap.add_argument("--hook", action="store_true", help="also run the engine through the Claude Code hook path")
     args = ap.parse_args()
 
     suites = get_suites(VERSION)
@@ -175,6 +176,8 @@ def main():
         suites = {k: v for k, v in suites.items() if k in args.suites}
     find_unscriptable(suites)
     defs = [D.NoDefense(), D.OracleToolFilter(), D.Flow("mcp"), D.Flow("library")]
+    if args.hook:
+        defs.append(D.HookFlow())
     if args.detectors:
         ours = D.our_detector()
         defs += [D.protectai_detector(), ours, D.Flow("library", detector=ours)]

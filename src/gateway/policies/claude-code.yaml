@@ -1,0 +1,90 @@
+# Claude Code's built-in tools, for hook mode (python -m src.gateway hook).
+#
+# Bash can't be classified completely from its text; these patterns only ADD
+# scrutiny to commands that can send data out or hide what they do. The hook
+# never allows anything, so everything else still goes through Claude Code's
+# own permission settings.
+name: claude-code
+vars:
+  secret_paths: ["*.env", "*.env.*", "*/.env*", "*secret*", "*credential*",
+                 "*id_rsa*", "*id_ed25519*", "*.pem", "*.key", "*.p12",
+                 "*/.aws/*", "*/.ssh/*", "*/.netrc", "*/.npmrc", "*/.pypirc",
+                 "*/.docker/config.json", "*/.kube/config"]
+  # code other people wrote, even though it's on your disk
+  untrusted_paths: ["*/node_modules/*", "*/site-packages/*", "*/Downloads/*", "*/vendor/*"]
+  # your open-source checkouts: reading them isn't reading private data
+  public_paths: []
+  # writes here change what runs next: CI, git hooks, shell startup, agent config
+  exec_paths: ["*/.github/workflows/*", "*/.git/hooks/*", "*/.bashrc", "*/.zshrc",
+               "*/.profile", "*/.bash_profile", "*/.zprofile", "*/.config/fish/*",
+               "*/Library/LaunchAgents/*", "*/.claude/*", "*/.mcp.json",
+               "*/.cursor/*", "*/.vscode/tasks.json", "*/crontab"]
+  shared_paths: []  # synced/shared folders: a write there leaves the machine
+  trusted_urls: []  # e.g. "https://docs.python.org/*"
+  # commands that can send data off the machine
+  egress_commands: ["*curl *", "*wget *", "*nc *", "*ncat *", "*netcat *", "*socat *",
+                    "*ssh *", "*scp *", "*sftp *", "*rsync *", "*ftp *", "*telnet *",
+                    "*/dev/tcp/*", "*/dev/udp/*", "*git push*", "*git remote add*",
+                    "*gh *", "*npm publish*", "*twine upload*", "*docker push*",
+                    "*aws *", "*gcloud *", "*gsutil *", "*az *", "*nslookup *", "*dig *",
+                    "*http *", "*https *", "*mail *", "*sendmail*", "*open http*"]
+  # commands whose real behaviour isn't visible in their text
+  opaque_commands: ["*base64 -d*", "*base64 --decode*", "*eval *", "*| sh*", "*|sh*",
+                    "*| bash*", "*|bash*", "*| zsh*", "*python* -c*", "*node -e*",
+                    "*perl -e*", "*ruby -e*", "*osascript*", "*xxd -r*"]
+  destructive_commands: ["*rm -rf*", "*rm -r *", "*rm -fr*", "*git reset --hard*",
+                         "*git clean -f*", "*git push --force*", "*git push -f*",
+                         "*drop table*", "*drop database*", "*mkfs*", "*dd if=*"]
+
+x-read: &read
+  - when: {file_path: $secret_paths}
+    reads: [private, secret]
+  - when: {file_path: $untrusted_paths}
+    reads: [untrusted, private]
+  - when: {file_path: $public_paths}
+    reads: []
+  - reads: [private]
+
+x-write: &write
+  - when: {file_path: $exec_paths}
+    writes: exec
+  - when: {file_path: $shared_paths}
+    writes: external
+  - writes: local
+
+tools:
+  Read: *read
+  Grep: {reads: [private]}
+  Glob: {reads: [private]}
+  LS: {reads: [private]}
+  Write: *write
+  Edit: *write
+  MultiEdit: *write
+  NotebookEdit:
+    - when: {notebook_path: $shared_paths}
+      writes: external
+    - writes: local
+  WebSearch: {reads: [untrusted]}
+  WebFetch:
+    - when: {url: $trusted_urls}
+      reads: [untrusted]
+    - reads: [untrusted]
+      writes: external
+      destination: [url]
+      destination_carries_data: true
+  Bash:
+    # order matters: a compound command matching several lists takes the first
+    - when: {command: $egress_commands}
+      reads: [untrusted, private]
+      writes: external
+    - when: {command: $opaque_commands}
+      reads: [untrusted, private]
+      writes: unknown
+    - when: {command: $destructive_commands}
+      reads: [private]
+      writes: destructive
+    - reads: [private]
+
+# Claude Code's other tools (todo lists, subagents, questions to you, …) move no
+# data by themselves; subagents' own tool calls go through the hook as well.
+unclassified: {}

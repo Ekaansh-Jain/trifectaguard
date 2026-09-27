@@ -16,6 +16,7 @@ reads; 591 attacks that succeed undefended, 97 benign tasks):
 | our detector (ModernBERT) | 1.7% | – | **39.2%** |
 | **flow control (library mode)** | **10.3%** | 30.9% | – |
 | flow control (MCP-gateway mode) | 10.0% | 44.3% | – |
+| flow control (Claude Code hook mode) | 10.3% | 30.9% | – |
 | flow control (library) + our detector | 0.8% | 41.2% | – |
 
 By what the attacker wants, flow control (library mode) lets through **0.3%**
@@ -27,6 +28,13 @@ entry): 60% of those 100 get through, because flow control governs where data
 and access go, not which legitimate option the agent picks. (Of the steering
 attacks it does stop, 11 count only because a legitimate page load needed
 approval; see eval/agentdojo/README.md.)
+
+Hook mode is run through the real hook code path (every call a hook event,
+session state saved and reloaded) and matches library mode exactly, per suite:
+seeing the user's request removes 13.4 points of approvals relative to the MCP
+proxy at the same attack success. A run inside the real Claude Code CLI is
+scripted (`eval/claude_code/e2e.py`) but has not been run yet (needs a
+logged-in CLI).
 
 **Adaptive red team** (`eval/redteam/adaptive.py`): attacks written against the
 rules themselves: laundering through shared files and the agent's own notes,

@@ -5,16 +5,22 @@ CLI for the MCP flow-control gateway.
   python -m src.gateway run --policy github -- npx -y @modelcontextprotocol/server-github
   python -m src.gateway inspect -c gateway.yaml         # how is every tool classified?
   python -m src.gateway repin -c gateway.yaml [--server github]
+
+Claude Code hook mode (no proxy; sees your request and Claude Code's own tools):
+  python -m src.gateway hooks-snippet -c gateway.yaml   # settings.json block to paste
+  python -m src.gateway hook -c gateway.yaml            # what the hooks run (reads JSON on stdin)
 """
 import argparse
 import contextlib
+import json
+import os
 import sys
 from contextlib import AsyncExitStack
+from pathlib import Path
 
-import anyio
+from src.gateway.config import Config
 
-from src.gateway.gateway import Config, Gateway
-from src.gateway.pins import fingerprint
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def load(args) -> Config:
@@ -28,7 +34,21 @@ def load(args) -> Config:
     return Config(servers={"upstream": spec})
 
 
+def hooks_snippet(config_path: str) -> dict:
+    """The settings.json "hooks" block that runs hook mode for every tool."""
+    config_path = str(Path(config_path).expanduser().resolve())
+    command = f"cd {ROOT} && {sys.executable} -m src.gateway hook -c {config_path}"
+    handler = [{"type": "command", "command": command, "timeout": 30}]
+    return {"hooks": {
+        "UserPromptSubmit": [{"hooks": handler}],
+        "PreToolUse": [{"matcher": "*", "hooks": handler}],
+        "PostToolUse": [{"matcher": "*", "hooks": handler}],
+    }}
+
+
 async def inspect(cfg: Config):
+    from src.gateway.gateway import Gateway
+    from src.gateway.pins import fingerprint
     gw = Gateway(cfg)
     async with AsyncExitStack() as stack:
         await gw.connect(stack)
@@ -62,7 +82,7 @@ async def inspect(cfg: Config):
 def main():
     ap = argparse.ArgumentParser(prog="python -m src.gateway")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    for name in ("run", "inspect", "repin"):
+    for name in ("run", "inspect", "repin", "hook", "hooks-snippet"):
         p = sub.add_parser(name)
         p.add_argument("-c", "--config")
         p.add_argument("--policy", help="policy preset/path for a single upstream given after --")
@@ -75,12 +95,27 @@ def main():
         argv, command = argv[:i], argv[i + 1:]
     args = ap.parse_args(argv)
     args.command = command
-    cfg = load(args)
 
+    if args.cmd in ("hook", "hooks-snippet"):
+        path = args.config or os.environ.get("MCP_GATEWAY_CONFIG")
+        if not path:
+            sys.exit("need -c CONFIG (or MCP_GATEWAY_CONFIG)")
+        if args.cmd == "hook":
+            from src.gateway.hook import main as hook_main
+            hook_main(path)
+        else:
+            Config.load(path)  # fail now, not on the first tool call
+            print(json.dumps(hooks_snippet(path), indent=2))
+        return
+
+    cfg = load(args)
     if args.cmd == "run":
+        import anyio
+        from src.gateway.gateway import Gateway
         with contextlib.suppress(KeyboardInterrupt):
             anyio.run(Gateway(cfg).serve)
     elif args.cmd == "inspect":
+        import anyio
         anyio.run(inspect, cfg)
     elif args.cmd == "repin":
         from src.gateway.pins import PinStore

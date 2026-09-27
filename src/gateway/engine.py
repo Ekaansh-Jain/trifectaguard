@@ -274,6 +274,33 @@ class FlowEngine:
         if self.detector is not None and "untrusted" in role.reads and self.detector(text):
             self._add("injection", where)
 
+    # ---- persistence (hooks run as a fresh process per tool call) ---------------
+    MAX_TEXTS = 400  # per list; dropping old text only makes destinations "unseen"
+    MAX_CHARS = 40_000  # per tool output
+
+    def to_state(self) -> dict:
+        cap = lambda xs: xs[-self.MAX_TEXTS:]  # noqa: E731
+        return {
+            "labels": self.labels,
+            "secrets": sorted(self.secrets),
+            "approvals": [[s, t, list(d)] for s, t, d in self.approvals],
+            "events": self.events[-50:],
+            "user_text": cap(self.user_text),
+            "trusted_text": [t[:self.MAX_CHARS] for t in cap(self.trusted_text)],
+            "untrusted_text": [[w, t[:self.MAX_CHARS]] for w, t in cap(self.untrusted_text)],
+            "tainted_writes": [[w, t[:self.MAX_CHARS]] for w, t in cap(self.tainted_writes)],
+        }
+
+    def load_state(self, state: dict):
+        self.labels = dict(state.get("labels", {}))
+        self.secrets = set(state.get("secrets", []))
+        self.approvals = {(s, t, tuple(d)) for s, t, d in state.get("approvals", [])}
+        self.events = list(state.get("events", []))
+        self.user_text = list(state.get("user_text", []))
+        self.trusted_text = list(state.get("trusted_text", []))
+        self.untrusted_text = [tuple(x) for x in state.get("untrusted_text", [])]
+        self.tainted_writes = [tuple(x) for x in state.get("tainted_writes", [])]
+
     def _add(self, label: str, where: str):
         if label not in self.labels:
             self.labels[label] = where

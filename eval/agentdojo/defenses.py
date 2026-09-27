@@ -135,3 +135,42 @@ def our_detector():
     d = Detector("our detector (ModernBERT, detector-final)", flag)
     d.flag_cached = lambda text: d.observe(None, None, text)
     return d
+
+
+class HookFlow(NoDefense):
+    """The flow engine through the Claude Code hook code path: every call is a
+    UserPromptSubmit / PreToolUse / PostToolUse event handled by
+    src/gateway/hook.py, with session state saved to disk and reloaded each
+    time, exactly as in Claude Code (minus the process spawn)."""
+    name = "flow control (Claude Code hook mode)"
+
+    def __init__(self):
+        import tempfile
+        from pathlib import Path
+        from src.gateway.hook import handle
+        self.handle, self.state_dir, self.n = handle, Path(tempfile.mkdtemp(prefix="hookflow-")), 0
+
+    def start(self, suite, user_task, prompt, env):
+        from src.gateway.config import Config
+        self.suite, self.n = suite, self.n + 1
+        self.session = f"{suite}-{self.n}"
+        self.cfg = Config(servers={suite: {"policy": os.path.join(POLICY_DIR, f"{suite}.yaml")}},
+                          state_dir=self.state_dir)
+        self.handle(self.cfg, {"hook_event_name": "UserPromptSubmit", "session_id": self.session,
+                               "prompt": prompt})
+
+    def _event(self, event, tool, args, **extra):
+        return self.handle(self.cfg, {"hook_event_name": event, "session_id": self.session,
+                                      "tool_name": f"mcp__{self.suite}__{tool}", "tool_input": args,
+                                      "tool_use_id": f"{self.session}-{tool}-{id(args)}", **extra})
+
+    def check(self, tool, args):
+        out = self._event("PreToolUse", tool, args)
+        if not out:
+            return "allow", ""
+        d = out["hookSpecificOutput"]
+        return ("ask" if d["permissionDecision"] == "ask" else "block"), d["permissionDecisionReason"]
+
+    def observe(self, tool, args, text):
+        self._event("PostToolUse", tool, args, tool_response=text)
+        return False

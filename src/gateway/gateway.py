@@ -23,66 +23,22 @@ import json
 import os
 import sys
 from contextlib import AsyncExitStack
-from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 import anyio
 import mcp.types as types
-import yaml
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
-from src.gateway.engine import DEFAULT_FLOWS, FlowEngine, Verdict
+from src.gateway.config import Config  # noqa: F401 — re-exported for callers
+from src.gateway.engine import FlowEngine, Verdict
 from src.gateway.pins import PinStore, fingerprint
-from src.gateway.rules import ServerPolicy
 
 ASK_CHOICES = ["allow once", "allow for this session", "block"]
 CONNECT_TIMEOUT_S = 60
-
-
-@dataclass
-class Config:
-    servers: dict  # name -> {command, args, env, cwd, policy, vars}
-    state_dir: Path = Path("~/.mcp-gateway").expanduser()
-    mode: str = "enforce"  # enforce | monitor
-    ask_fallback: str = "block"  # when the client can't show approval prompts
-    on_tool_change: str = "block"  # block | warn
-    strict_links: bool = True  # with private data in session, opening attacker-supplied links asks
-    flows: list = field(default_factory=lambda: list(DEFAULT_FLOWS))
-    detector: dict | None = None
-    base_dir: Path = Path(".")
-
-    @classmethod
-    def load(cls, path: str) -> "Config":
-        path = Path(path).expanduser().resolve()
-        doc = yaml.safe_load(path.read_text()) or {}
-        if not doc.get("servers"):
-            raise ValueError(f"{path}: no servers configured")
-        cfg = cls(servers=doc["servers"], base_dir=path.parent)
-        cfg.state_dir = Path(os.path.expandvars(doc.get("state_dir", str(cfg.state_dir)))).expanduser()
-        for key in ("mode", "ask_fallback", "on_tool_change", "detector", "strict_links"):
-            if key in doc:
-                setattr(cfg, key, doc[key])
-        if "flows" in doc:
-            cfg.flows = doc["flows"]
-        cfg.validate()
-        return cfg
-
-    def validate(self):
-        assert self.mode in ("enforce", "monitor"), f"mode must be enforce|monitor, not {self.mode!r}"
-        assert self.ask_fallback in ("block", "allow"), "ask_fallback must be block|allow"
-        assert self.on_tool_change in ("block", "warn"), "on_tool_change must be block|warn"
-        for f in self.flows:
-            assert f.get("action") in ("ask", "block", "allow"), f"flow {f.get('name')}: bad action"
-
-    def policies(self) -> dict:
-        return {
-            name: ServerPolicy.load(s["policy"], s.get("vars"))
-            for name, s in self.servers.items() if s.get("policy")
-        }
 
 
 def _expand(value):

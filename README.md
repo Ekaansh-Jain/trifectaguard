@@ -55,6 +55,31 @@ python -m src.gateway run -c gateway.yaml           # the command your MCP clien
 python -m src.gateway run --policy github -- npx -y @modelcontextprotocol/server-github   # one server, no config
 ```
 
+### In Claude Code: hook mode (recommended there)
+
+In Claude Code the engine runs as hooks instead of a proxy. That way it sees
+your request (so destinations you typed are trusted: 30.9% of AgentDojo's
+benign tasks need an approval instead of 44.3%, same attack results), covers
+Claude Code's own tools (`Read`, `WebFetch`, `Write`, `Bash`) as well as every
+MCP server, and asks through Claude Code's normal approval prompt. It only
+ever answers "ask" or "deny", never "allow", so it can't loosen your
+permission settings.
+
+```bash
+python -m src.gateway hooks-snippet -c gateway.yaml   # paste into ~/.claude/settings.json or .claude/settings.json
+python eval/claude_code/e2e.py                        # real Claude Code, with vs without the hook (needs `claude` /login)
+```
+
+Config: `builtin: {policy: claude-code}` for the built-in tools, and under
+`servers:` your Claude Code MCP server names with their policies (no
+`command` needed). `Bash` is classified from its text: commands that can send
+data out (`curl`, `ssh`, `git push`, …) or hide what they do (`base64 -d`,
+`eval`, `| sh`, `python -c`) get the scrutiny; that list can't be complete, so
+keep Claude Code's own Bash permissions on. The detector isn't available in
+hook mode (each hook is a fresh process).
+
+### As an MCP proxy (other clients)
+
 In your MCP client, replace the individual servers with one entry whose command
 is `python -m src.gateway run -c /abs/path/gateway.yaml` (cwd = this repo). With
 several servers, tools are exposed as `<server>__<tool>`.
