@@ -35,3 +35,6 @@ results/adaptive.txt
 results/holdout*.txt
 detector-boosted/
 results/boosted*.txt
+detector-final/
+results/final_train.txt
+results/eval_boosted.txt

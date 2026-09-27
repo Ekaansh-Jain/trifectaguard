@@ -76,10 +76,13 @@ def load_sources():
     add("xTRam1/safe-guard-prompt-injection", "train", "text")
     # pure-injection sources (all label 1)
     add("Lakera/gandalf_ignore_instructions", "train", "text", label_val=1)
-    # jailbreak-specific sources (the weakest category in eval)
-    add("jackhhao/jailbreak-classification", "train", "prompt",
-        label_key="type", label_map={"jailbreak": 1, "benign": 0})
-    add("rubend18/ChatGPT-Jailbreak-Prompts", "train", "Prompt", label_val=1)
+    # NOTE: jackhhao/rubend18 jailbreak data was tested but did not transfer to
+    # the external jailbreak category and regressed `encoding`, so it's left out.
+    # Keep only the dilution augmentation win (see build()).
+    if os.environ.get("USE_JAILBREAK") == "1":
+        add("jackhhao/jailbreak-classification", "train", "prompt",
+            label_key="type", label_map={"jailbreak": 1, "benign": 0})
+        add("rubend18/ChatGPT-Jailbreak-Prompts", "train", "Prompt", label_val=1)
     return pos, neg
 
 
