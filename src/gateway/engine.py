@@ -189,10 +189,13 @@ class FlowEngine:
                                     + (f"appears only in untrusted content from {o}"
                                        if o != "unseen" else
                                        "you didn't mention and no trusted source provided"))
+        # a call that itself reads private data or secrets (curl -d @.env …) can
+        # send them in the same step, so its own reads count too
+        labels = set(self.labels) | (set(role.reads) & {"private", "secret"})
         for flow in self.flows:
             if role.writes not in flow["sinks"]:
                 continue
-            if not all(label in self.labels for label in flow["requires"]):
+            if not all(label in labels for label in flow["requires"]):
                 continue
             if flow.get("skip_if_destination_trusted") and dest_trusted:
                 continue
@@ -308,7 +311,7 @@ class FlowEngine:
 
     def _explain(self, flow: dict, where: str, role: Role) -> str:
         sources = ", ".join(
-            f"{LABEL_TEXT.get(l, l)} from {self.labels[l]}" for l in flow["requires"]
+            f"{LABEL_TEXT.get(l, l)} from {self.labels.get(l, where + ' itself')}" for l in flow["requires"]
         )
         return (f"{where} sends data to {SINK_TEXT.get(role.writes, role.writes)}, "
                 f"and {flow.get('why', 'the session state matches this rule')} "

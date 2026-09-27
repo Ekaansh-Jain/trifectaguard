@@ -32,6 +32,10 @@ vars:
   opaque_commands: ["*base64 -d*", "*base64 --decode*", "*eval *", "*| sh*", "*|sh*",
                     "*| bash*", "*|bash*", "*| zsh*", "*python* -c*", "*node -e*",
                     "*perl -e*", "*ruby -e*", "*osascript*", "*xxd -r*"]
+  # commands that touch credential files or dump the environment
+  secret_commands: ["*.env*", "*id_rsa*", "*id_ed25519*", "*.pem*", "*.p12*", "*/.aws/*",
+                    "*/.ssh/*", "*credentials*", "*secret*", "*.netrc*", "*.npmrc*", "*.pypirc*",
+                    "*kube/config*", "*docker/config.json*", "*printenv*", "env", "export -p*"]
   destructive_commands: ["*rm -rf*", "*rm -r *", "*rm -fr*", "*git reset --hard*",
                          "*git clean -f*", "*git push --force*", "*git push -f*",
                          "*drop table*", "*drop database*", "*mkfs*", "*dd if=*"]
@@ -74,6 +78,9 @@ tools:
       destination_carries_data: true
   Bash:
     # order matters: a compound command matching several lists takes the first
+    - when: {command: $egress_commands, "{command}": $secret_commands}  # e.g. curl -d @.env …
+      reads: [untrusted, private, secret]
+      writes: external
     - when: {command: $egress_commands}
       reads: [untrusted, private]
       writes: external
@@ -83,6 +90,8 @@ tools:
     - when: {command: $destructive_commands}
       reads: [private]
       writes: destructive
+    - when: {command: $secret_commands}  # cat .env, grep … ~/.aws/credentials, printenv
+      reads: [private, secret]
     - reads: [private]
 
 # Claude Code's other tools (todo lists, subagents, questions to you, …) move no
