@@ -80,8 +80,12 @@ def decide(engine_decision, context: dict, use_llm: bool):
     """
     if engine_decision.allow:
         return True, "allowed by policy"
-    if engine_decision.code == "dlp" or not use_llm:
+    # Hard blocks (not adjudicable): verbatim-secret DLP, and a detector hit — the
+    # detector's ~1.3% FPR makes a flag strong evidence of a real attack, so we
+    # don't let the LLM be talked out of it.
+    if engine_decision.code in ("dlp", "detector") or not use_llm:
         return False, engine_decision.reason
+    # Weaker signal (trifecta fires on benign secret-reads too) -> adjudicate.
     if engine_decision.code == "trifecta":
         return adjudicate(context)
     return False, engine_decision.reason

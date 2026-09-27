@@ -42,9 +42,11 @@ class TaintEngine:
     untrusted_sources: set = field(default_factory=set)
     sinks: set = field(default_factory=set)
     sensitive_reads: set = field(default_factory=set)  # tools that read files
+    detector: object = None  # optional Layer-1: scan(text)->bool
 
     ingested_untrusted: bool = False
     read_sensitive: bool = False
+    injection_detected: bool = False
     tainted_values: set = field(default_factory=set)
     events: list = field(default_factory=list)
 
@@ -53,6 +55,10 @@ class TaintEngine:
         if tool_name in self.untrusted_sources:
             self.ingested_untrusted = True
             self.events.append(f"ingested untrusted content via {tool_name}()")
+            # Layer 1: scan the ingested content for injection
+            if self.detector is not None and self.detector(result_text):
+                self.injection_detected = True
+                self.events.append(f"DETECTOR flagged injection in {tool_name}() output")
         if tool_name in self.sensitive_reads:
             path = str(args.get("path", ""))
             sensitive = bool(SENSITIVE_PATH_RE.search(path)) or self._looks_secret(
@@ -88,6 +94,16 @@ class TaintEngine:
                 f"blocked {tool_name}(): session read a sensitive resource after "
                 f"ingesting untrusted content (lethal-trifecta guard)",
                 code="trifecta",
+            )
+        # Layer 1 signal: an injection was detected in ingested content and now a
+        # sink is firing. Catches manipulation/non-exfil attacks the trifecta (which
+        # needs a sensitive read) would miss. Adjudicable.
+        if self.injection_detected:
+            return Decision(
+                False,
+                f"blocked {tool_name}(): sink fired after the detector flagged an "
+                f"injection in ingested content",
+                code="detector",
             )
         return Decision(True)
 
@@ -134,10 +150,11 @@ DEFAULT_POLICY = {
 }
 
 
-def build_engine(policy: dict = None) -> TaintEngine:
+def build_engine(policy: dict = None, detector=None) -> TaintEngine:
     p = policy or DEFAULT_POLICY
     return TaintEngine(
         untrusted_sources=set(p.get("untrusted_sources", [])),
         sinks=set(p.get("sinks", [])),
         sensitive_reads=set(p.get("sensitive_reads", [])),
+        detector=detector,
     )
