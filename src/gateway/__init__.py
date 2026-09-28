@@ -1,9 +1,9 @@
 """Information-flow control for AI agents.
 
 Three ways to run the same engine:
-  - library:      `from flowguard import Guard` (see guard.py)
-  - Claude Code:  hooks (`python -m flowguard hooks-snippet -c config.yaml`)
-  - any MCP app:  a proxy in front of your MCP servers (`python -m flowguard run -c config.yaml`)
+  - library:      `from trifectaguard import Guard` (see guard.py)
+  - Claude Code:  hooks (`python -m trifectaguard hooks-snippet -c config.yaml`)
+  - any MCP app:  a proxy in front of your MCP servers (`python -m trifectaguard run -c config.yaml`)
 
 (In this repo the package is importable as `src.gateway`; proxy.py and
 policy.py are the original single-server research proxy used by the

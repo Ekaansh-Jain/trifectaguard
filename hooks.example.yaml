@@ -6,7 +6,7 @@
 mode: monitor          # monitor | enforce
 strict_links: true     # after private data is read, opening links from untrusted content asks
 remember_approvals: session   # "project": a destination you approve in a project isn't asked again
-                              # in later sessions there (see: flowguard approvals -c hooks.yaml)
+                              # in later sessions there (see: trifectaguard approvals -c hooks.yaml)
 state_dir: ~/.mcp-gateway
 
 # Claude Code's own tools: Read, Write, Edit, WebFetch, Bash, …

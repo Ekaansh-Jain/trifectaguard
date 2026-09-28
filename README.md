@@ -1,4 +1,4 @@
-# flowguard
+# trifectaguard
 
 **Stop AI agents from leaking your data or acting for an attacker, whatever
 the injected instruction says.**
@@ -6,7 +6,7 @@ the injected instruction says.**
 An agent that can read untrusted content (web pages, issues, emails), read your
 private data, and send things out can be turned against you by one injected
 instruction ([the "lethal trifecta"](https://simonwillison.net/tags/lethal-trifecta/)).
-Detectors try to spot the injection's wording and can be evaded. flowguard
+Detectors try to spot the injection's wording and can be evaded. trifectaguard
 tracks **what the session has read** and **where each tool call sends it**, and
 asks or blocks before private data, credentials, money or access go somewhere
 an injection chose.
@@ -25,10 +25,10 @@ Desktop, Cursor, …), or as a **Python library** for your own agents
 ```bash
 git clone <this repo> && cd <repo>
 pip install ".[mcp]"          # Python 3.10+; the [mcp] extra is only needed for the proxy
-flowguard scan                # read-only: what could an injection make your AI apps do?
+trifectaguard scan                # read-only: what could an injection make your AI apps do?
 ```
 
-`flowguard scan` reads the MCP configs of Claude Code, Claude Desktop, Cursor,
+`trifectaguard scan` reads the MCP configs of Claude Code, Claude Desktop, Cursor,
 Windsurf and VS Code and explains every risky combination:
 
 ```
@@ -50,14 +50,14 @@ unprotected high-risk combination exists, so it can gate CI.
 | [Python library](#your-own-agent-python) | LangChain/LangGraph, OpenAI Agents SDK, your own loop | a live LangGraph agent |
 
 Start any of them in `mode: monitor` to see what it *would* stop before it stops anything,
-then `flowguard suggest -c <config>` proposes config (trusted sites, remembered
+then `trifectaguard suggest -c <config>` proposes config (trusted sites, remembered
 approvals) that removes repeat prompts without weakening the rules.
 
 ### Claude Code
 
 ```bash
 cp hooks.example.yaml hooks.yaml          # list your MCP servers; starts in monitor mode
-flowguard hooks-snippet -c hooks.yaml     # paste the output into ~/.claude/settings.json
+trifectaguard hooks-snippet -c hooks.yaml     # paste the output into ~/.claude/settings.json
 ```
 
 The engine runs as `UserPromptSubmit` / `PreToolUse` / `PostToolUse` hooks. It
@@ -68,18 +68,18 @@ Code's normal approval prompt. It only ever answers "ask" or "deny", never
 its text (commands that can send data out or hide what they do get the
 scrutiny); that can't be complete, so keep Claude Code's own Bash permissions
 on, and for strong guarantees on shell commands use Claude Code's `/sandbox`
-(OS-level network limits) alongside flowguard. With `remember_approvals:
+(OS-level network limits) alongside trifectaguard. With `remember_approvals:
 project`, a destination you approve in a project isn't asked again there.
 
 ### Any MCP app (Claude Desktop, Cursor, …)
 
 ```bash
 cp gateway.example.yaml gateway.yaml      # your servers + which repos are public/private
-flowguard inspect -c gateway.yaml         # how every tool is classified
+trifectaguard inspect -c gateway.yaml         # how every tool is classified
 ```
 
 In the app's MCP config, replace your servers with one entry running
-`flowguard run -c /abs/path/gateway.yaml`. One gateway fronts all of them, so a
+`trifectaguard run -c /abs/path/gateway.yaml`. One gateway fronts all of them, so a
 web page read through one server and a file read through another are one flow.
 Risky calls ask the user through MCP elicitation where the app supports it,
 and are blocked otherwise. Works with `mcp` 1.26+ and 2.x.
@@ -87,7 +87,7 @@ and are blocked otherwise. Works with `mcp` 1.26+ and 2.x.
 ### Your own agent (Python)
 
 ```python
-from flowguard import Guard, ask_in_terminal
+from trifectaguard import Guard, ask_in_terminal
 from langchain_core.tools import tool     # or the OpenAI Agents SDK's @function_tool
 
 guard = Guard({"tools": {
@@ -133,7 +133,7 @@ relay (or raises `Blocked` with `blocked="raise"`). One `Guard` per conversation
 On [AgentDojo](https://github.com/ethz-spylab/agentdojo) v1.2.2 with a
 worst-case agent that obeys every injection it reads:
 
-| Attacker's goal | Still succeeds with flowguard |
+| Attacker's goal | Still succeeds with trifectaguard |
 |---|---|
 | steal data (299 attacks) | **0.3%** |
 | hijack payments, access or contact (153) | **0%** |
@@ -154,7 +154,7 @@ Method, disclosed post-hoc changes and every number: [RESULTS.md](RESULTS.md).
 - It controls **where data and access go**, not which legitimate option an
   agent picks, what text it writes to a legitimate recipient, or its final answer.
 - Security depends on the policies being right; a misclassified tool is a hole.
-  `flowguard inspect` and `flowguard scan` show what each tool is treated as.
+  `trifectaguard inspect` and `trifectaguard scan` show what each tool is treated as.
 - `Bash` classification in Claude Code is pattern-based: pair it with Claude
   Code's `/sandbox` for shell commands.
 - GitHub repo visibility comes from your config, not the API.
@@ -173,11 +173,11 @@ how each is documented to work, not a benchmark.
 | [lasso-security/claude-hooks](https://github.com/lasso-security/claude-hooks) (`8fbfd14`) | tool **output** (PostToolUse) | warns only | no | ~96 regex patterns in 4 categories (instruction override, role-play, encoding, context manipulation) |
 | [dwarvesf/claude-guardrails](https://github.com/dwarvesf/claude-guardrails) (`b3c3e15`) | tool calls (PreToolUse), prompts, output | blocks (deny rules, command checks); output scan warns | no | mostly Claude Code permission deny rules for sensitive paths; its README notes Bash reads aren't covered by `Read` deny rules. Its output scanner reads a `tool_output` field; Claude Code's documented field is `tool_response` |
 | [slavaspitsyn/claude-code-security-hooks](https://github.com/slavaspitsyn/claude-code-security-hooks) (`c4f126a`) | tool calls (PreToolUse) | blocks | no | per-command rules: credential path + network tool in the same command, read guards for credential directories, POST domain whitelist, canary files |
-| **flowguard** | tool calls **and** output, across the whole session | asks or blocks | **yes** | labels what the session has read and checks where each call sends data and who chose the destination; also an MCP proxy and a Python library |
+| **trifectaguard** | tool calls **and** output, across the whole session | asks or blocks | **yes** | labels what the session has read and checks where each call sends data and who chose the destination; also an MCP proxy and a Python library |
 
 The others judge each call or output on its own (patterns, paths, command
-shapes); flowguard judges a call by what the session has already read and where
-the call sends it. They are complementary: path deny rules and flowguard can
+shapes); trifectaguard judges a call by what the session has already read and where
+the call sends it. They are complementary: path deny rules and trifectaguard can
 run together.
 
 ## Research and reproducing the results
@@ -191,7 +191,7 @@ ModernBERT (`scripts/`, `data/`, results and corrections in RESULTS.md).
 pip install ".[mcp]" agentdojo openai python-dotenv
 cp .env.example .env                              # Groq / NVIDIA NIM / Gemini keys, for live-model runs only
 python run_all_tests.py --no-llm                  # every test, no API calls
-python eval/redteam/adaptive.py                   # attacks on flowguard's own rules
+python eval/redteam/adaptive.py                   # attacks on trifectaguard's own rules
 python eval/agentdojo/worst_case.py --hook        # AgentDojo, model-independent (~3 min)
 python eval/agentdojo/report.py                   # tables
 python run_pilot.py --all --runs 10               # original model leak-rate benchmark
@@ -202,7 +202,7 @@ Inside this checkout the package is also importable as `src.gateway`
 
 ## Repository layout
 
-- `src/gateway/`: the package (`flowguard` when installed): `engine.py` (labels +
+- `src/gateway/`: the package (`trifectaguard` when installed): `engine.py` (labels +
   flow rules), `rules.py` (YAML policies), `policies/` (presets), `dlp.py`,
   `hook.py` (Claude Code), `gateway.py` (MCP proxy), `guard.py` (library),
   `scan.py`, `pins.py`. `proxy.py`/`policy.py` are the original research proxy.

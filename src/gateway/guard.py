@@ -3,7 +3,7 @@ Library mode: guard the tools of any Python agent (LangChain/LangGraph, the
 OpenAI Agents SDK, or your own loop) with the same flow engine the Claude Code
 hooks and the MCP proxy use.
 
-    from flowguard import Guard
+    from trifectaguard import Guard
 
     guard = Guard({"tools": {
         "read_inbox": {"reads": ["untrusted", "private"]},
@@ -54,7 +54,7 @@ class ApprovalRequest:
 
 
 def ask_in_terminal(request: ApprovalRequest) -> bool:
-    print(f"\n[flowguard] {request.reason}\n  call: {request.tool}({json.dumps(request.args, default=str)[:300]})")
+    print(f"\n[trifectaguard] {request.reason}\n  call: {request.tool}({json.dumps(request.args, default=str)[:300]})")
     return input("  allow? [y/N] ").strip().lower() in ("y", "yes")
 
 
@@ -138,7 +138,7 @@ class Guard:
         def refused(v: Verdict):
             if self.blocked == "raise":
                 raise Blocked(v, tool_name)
-            return (f"[flowguard blocked] {v.reason} (rule: {v.rule}). This call did not run. "
+            return (f"[trifectaguard blocked] {v.reason} (rule: {v.rule}). This call did not run. "
                     f"Do not retry it or send the data another way; tell the user what was blocked.")
 
         if inspect.iscoroutinefunction(fn):

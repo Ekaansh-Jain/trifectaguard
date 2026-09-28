@@ -1,4 +1,4 @@
-"""flowguard scan against fake home directories (read-only audit of AI app configs)."""
+"""trifectaguard scan against fake home directories (read-only audit of AI app configs)."""
 import json
 import os
 import sys
@@ -75,13 +75,13 @@ def test_filesystem_root_that_holds_no_credentials_is_not_a_credential_path(tmp_
     assert any("private data" in t for t in titles)  # project files can still leak
 
 
-def test_servers_behind_flowguard_count_as_protected(tmp_path):
+def test_servers_behind_trifectaguard_count_as_protected(tmp_path):
     home, cwd = home_with(tmp_path, desktop_servers={})
     cfg = tmp_path / "gateway.yaml"
     import yaml
     cfg.write_text(yaml.safe_dump({"servers": servers(home)}))
     (home / DESKTOP).write_text(json.dumps({"mcpServers": {
-        "guard": {"command": "python", "args": ["-m", "flowguard", "run", "-c", str(cfg)]}}}))
+        "guard": {"command": "python", "args": ["-m", "trifectaguard", "run", "-c", str(cfg)]}}}))
     d = app(discover(home, cwd)[0], "Claude Desktop")
     assert d.protected and all(s.protected for s in d.sources)
     assert d.findings and all(f.mitigated for f in d.findings)
@@ -99,7 +99,7 @@ def test_unknown_server_is_assumed_risky(tmp_path):
 
 def test_claude_code_hooks_auto_approvals_and_modes(tmp_path):
     hooks = {"PreToolUse": [{"matcher": "*", "hooks": [{"type": "command",
-                                                      "command": "python -m flowguard hook -c x.yaml"}]}]}
+                                                      "command": "python -m trifectaguard hook -c x.yaml"}]}]}
     home, cwd = home_with(tmp_path, claude_settings={
         "hooks": hooks, "permissions": {"allow": ["Bash(curl *)", "Read", "WebFetch"],
                                         "defaultMode": "bypassPermissions"}})

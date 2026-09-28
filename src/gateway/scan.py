@@ -1,5 +1,5 @@
 """
-`flowguard scan`: a read-only audit of the AI apps on this machine.
+`trifectaguard scan`: a read-only audit of the AI apps on this machine.
 
 For each app (Claude Code, Claude Desktop, Cursor, Windsurf, VS Code) it finds
 the configured MCP servers, recognises the ones we have policies for, and
@@ -28,7 +28,7 @@ KNOWN = [
     ("fetch", re.compile(r"mcp-server-fetch|server-fetch", re.I)),
     ("slack", re.compile(r"server-slack", re.I)),
 ]
-GATEWAY = re.compile(r"(flowguard|src\.gateway)\b.*\brun\b", re.I)
+GATEWAY = re.compile(r"(trifectaguard|src\.gateway)\b.*\brun\b", re.I)
 CREDENTIAL_FILES = ["~/.aws/credentials", "~/.ssh/id_rsa", "~/.ssh/id_ed25519", "~/.netrc", "~/.npmrc",
                     "~/.pypirc", "~/.docker/config.json", "~/.kube/config", "~/.config/gcloud/credentials.db"]
 RISKY_AUTO_APPROVALS = re.compile(r"^(Bash|Bash\((\*|curl|wget|ssh|scp|nc|python|node|npx|gh).*\)|WebFetch.*|mcp__.*)$")
@@ -52,7 +52,7 @@ class App:
     name: str
     config_paths: list
     sources: list = field(default_factory=list)
-    protected: bool = False  # flowguard hooks installed (Claude Code)
+    protected: bool = False  # trifectaguard hooks installed (Claude Code)
     auto_approved: list = field(default_factory=list)
     notes: list = field(default_factory=list)
     findings: list = field(default_factory=list)
@@ -88,7 +88,7 @@ def _identify(spec: dict) -> str | None:
 
 
 def _gateway_upstreams(spec: dict) -> dict | None:
-    """If this server is flowguard's own proxy, the servers it protects."""
+    """If this server is trifectaguard's own proxy, the servers it protects."""
     args = [str(a) for a in spec.get("args", [])]
     if not GATEWAY.search(" ".join([str(spec.get("command", "")), *args])):
         return None
@@ -170,7 +170,7 @@ def discover(home: Path, cwd: Path) -> tuple[list[App], list[str]]:
         for s in (settings, home / ".claude" / "settings.local.json", cwd / ".claude" / "settings.json"):
             doc = _load_json(s) or {}
             hooks = json.dumps(doc.get("hooks") or {})
-            if "flowguard hook" in hooks or "src.gateway hook" in hooks:
+            if "trifectaguard hook" in hooks or "src.gateway hook" in hooks:
                 app.protected = True
             perms = doc.get("permissions") or {}
             app.auto_approved += [p for p in perms.get("allow", []) if RISKY_AUTO_APPROVALS.match(p)]
@@ -247,22 +247,22 @@ def assess(app: App) -> list[Finding]:
 def render(apps: list[App], creds: list[str], color: bool) -> str:
     def c(code, s):
         return f"\033[{code}m{s}\033[0m" if color else s
-    lines = [c("1", "flowguard scan") + " — could an injected instruction make your AI agents leak data or take actions?", ""]
+    lines = [c("1", "trifectaguard scan") + " — could an injected instruction make your AI agents leak data or take actions?", ""]
     if not apps:
         lines.append("No Claude Code, Claude Desktop, Cursor, Windsurf or VS Code MCP configuration found.")
     exposed = 0
     for app in apps:
-        status = c("32", "protected by flowguard") if app.protected else c("33", "not protected")
+        status = c("32", "protected by trifectaguard") if app.protected else c("33", "not protected")
         lines.append(f"{c('1', app.name)}  ({status})")
         for s in app.sources:
             kind = s.preset or c("33", "unknown server: assumed to read anything and send anywhere")
-            lines.append(f"  • {s.name}  [{kind}]{'  ✓ behind flowguard' if s.protected else ''}"
+            lines.append(f"  • {s.name}  [{kind}]{'  ✓ behind trifectaguard' if s.protected else ''}"
                          + (f"  {c('2', s.detail)}" if s.detail else ""))
         if not app.sources:
             lines.append("  no MCP servers configured")
         for f in app.findings:
             if f.mitigated:
-                lines.append(f"  {c('32', 'OK   ')} {f.title} — guarded by flowguard")
+                lines.append(f"  {c('32', 'OK   ')} {f.title} — guarded by trifectaguard")
                 continue
             exposed += 1
             tag = c("31;1", "HIGH ") if f.severity == "HIGH" else c("33;1", "MED  ")
@@ -280,8 +280,8 @@ def render(apps: list[App], creds: list[str], color: bool) -> str:
         lines.append("")
     if exposed:
         lines += [c("1", "Protect these flows:"),
-                  "  Claude Code:            python -m flowguard hooks-snippet -c hooks.yaml   (see hooks.example.yaml)",
-                  "  Claude Desktop/Cursor:  put your servers behind  python -m flowguard run -c gateway.yaml",
+                  "  Claude Code:            python -m trifectaguard hooks-snippet -c hooks.yaml   (see hooks.example.yaml)",
+                  "  Claude Desktop/Cursor:  put your servers behind  python -m trifectaguard run -c gateway.yaml",
                   "  Start with  mode: monitor  to see what it would stop before it stops anything."]
     else:
         lines.append(c("32", "Nothing exposed."))

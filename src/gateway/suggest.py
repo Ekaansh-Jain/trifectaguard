@@ -1,5 +1,5 @@
 """
-`flowguard suggest`: read the audit log (ideally after a few days in monitor
+`trifectaguard suggest`: read the audit log (ideally after a few days in monitor
 mode) and propose config that removes repeat prompts without weakening the
 rules: links you keep opening become trusted_urls, destinations you keep
 approving point at remember_approvals: project.

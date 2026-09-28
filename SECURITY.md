@@ -1,6 +1,6 @@
 # Security policy
 
-flowguard is a security tool, so a way around it is the most useful bug you can
+trifectaguard is a security tool, so a way around it is the most useful bug you can
 report. Please try to break it.
 
 ## What counts as a bypass
@@ -16,7 +16,7 @@ With a correct policy for the tools involved, any of these:
 - a crash, malformed input or lost state that makes the hook, proxy or library
   allow a call it would otherwise stop.
 
-Out of scope, because flowguard doesn't claim them (see the README's *Limits*):
+Out of scope, because trifectaguard doesn't claim them (see the README's *Limits*):
 steering an agent among legitimate options, the text an agent writes to a
 legitimate recipient, the agent's final answer, and shell commands whose effect
 isn't visible in their text (use an OS sandbox for those).
@@ -40,6 +40,6 @@ unless you'd rather not be named.
 
 ```bash
 python run_all_tests.py --no-llm                           # unit, e2e, red-team, properties
-FLOWGUARD_EXAMPLES=20000 python -m pytest tests/test_properties.py
+TRIFECTAGUARD_EXAMPLES=20000 python -m pytest tests/test_properties.py
 python eval/agentdojo/worst_case.py --hook                 # AgentDojo, model-independent
 ```

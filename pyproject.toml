@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "flowguard"
+name = "trifectaguard"
 version = "0.1.0"
 description = "Information-flow control for AI agents: stop tool calls that move untrusted-influenced data or actions somewhere they shouldn't go. Claude Code hooks, an MCP proxy, or a library."
 readme = "README.md"
@@ -16,13 +16,13 @@ mcp = ["mcp>=1.26,<3", "anyio>=4"]     # the MCP proxy; tested on mcp 1.26 and 2
 detector = ["torch", "transformers"]     # optional injection detector signal
 
 [project.scripts]
-flowguard = "flowguard.__main__:main"
+trifectaguard = "trifectaguard.__main__:main"
 
 # The code lives in src/gateway so the research scripts in this repo keep
-# importing it as src.gateway; installed, it is the `flowguard` package.
+# importing it as src.gateway; installed, it is the `trifectaguard` package.
 [tool.setuptools]
-package-dir = {"flowguard" = "src/gateway"}
-packages = ["flowguard"]
+package-dir = {"trifectaguard" = "src/gateway"}
+packages = ["trifectaguard"]
 
 [tool.setuptools.package-data]
-flowguard = ["policies/*.yaml"]
+trifectaguard = ["policies/*.yaml"]

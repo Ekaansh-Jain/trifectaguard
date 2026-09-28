@@ -13,7 +13,7 @@ independently of the engine:
 The policy classification itself is taken as given; what's tested is the flow
 logic on top of it.
 
-  FLOWGUARD_EXAMPLES=20000 python -m pytest tests/test_properties.py   # deeper run
+  TRIFECTAGUARD_EXAMPLES=20000 python -m pytest tests/test_properties.py   # deeper run
 """
 import base64
 import os
@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.gateway.engine import FlowEngine  # noqa: E402
 from src.gateway.rules import ServerPolicy  # noqa: E402
 
-EXAMPLES = int(os.environ.get("FLOWGUARD_EXAMPLES", "1500"))
+EXAMPLES = int(os.environ.get("TRIFECTAGUARD_EXAMPLES", "1500"))
 SETTINGS = settings(max_examples=EXAMPLES, deadline=None, suppress_health_check=list(HealthCheck))
 
 USER = ["bob@corp.example", "https://docs.corp.example/guide", "DE89370400440532013000"]
