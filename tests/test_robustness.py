@@ -112,7 +112,9 @@ def test_non_english_text_is_read_correctly_whatever_the_platform_encoding(tmp_p
 def test_cli_output_is_utf8_even_where_the_platform_default_is_not(tmp_path):
     """Windows pipes default to cp1252; a reader expecting UTF-8 then got nothing
     (subprocess returned stdout=None on Windows when decoding failed)."""
-    env = {**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0", "HOME": str(tmp_path)}
+    # HOME on macOS/Linux, USERPROFILE on Windows: point both at the fake home
+    env = {**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0",
+           "HOME": str(tmp_path), "USERPROFILE": str(tmp_path)}
     (tmp_path / ".claude").mkdir()
     (tmp_path / ".claude" / "settings.json").write_text("{}", encoding="utf-8")
     r = subprocess.run([sys.executable, "-m", "src.gateway", "scan"], cwd=ROOT, env=env,

@@ -24,6 +24,8 @@ jobs:
       - name: Publish failing tests as annotations (readable without logging in)
         if: failure()
         shell: python
+        env:
+          PYTHONIOENCODING: utf-8  # test output can hold symbols the Windows console encoding can't
         run: |
           import xml.etree.ElementTree as ET
           for case in ET.parse("junit.xml").iter("testcase"):
