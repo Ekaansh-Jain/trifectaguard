@@ -99,6 +99,18 @@ failures. The other benign differences had no ask and are provider
 nondeterminism. Combined with the first run, gpt-oss-120b attacks went from
 12/18 undefended to 0/18 with flow control. Still small samples.
 
+**Real sessions, not a benchmark** (`trifectaguard replay`): 1,015 real tool
+calls from this project's own Claude Code sessions (building a prompt-injection
+benchmark: constant `.env` use, web research, API calls, file edits) replayed
+through the hooks. The first replay showed the Bash rules blocking **24%** of
+normal work: substring patterns matched `grep -c`, "sync", "email", and the
+shell tokenizer gave up on heredocs with apostrophes. After parsing commands
+into programs and arguments and reading inline Python by its syntax tree:
+**2.4% denied, 2.3% asked**. The remaining denies are mostly real
+credentials-then-network calls after web browsing (`curl`, scripts that load
+`.env` and call an API) and commands run from shell variables. AgentDojo
+numbers are unchanged by these fixes.
+
 **Adaptive red team** (`eval/redteam/adaptive.py`): attacks written against the
 rules themselves: laundering through shared files and the agent's own notes,
 look-alike addresses, spelled-out addresses, contacts poisoning, link-choice
