@@ -14,7 +14,10 @@ env vars so this file stays neutral.
 import json
 import os
 
-from mcp.server.fastmcp import FastMCP
+try:
+    from mcp.server.fastmcp import FastMCP  # mcp 1.x
+except ImportError:  # mcp 2.x renamed it
+    from mcp.server.mcpserver import MCPServer as FastMCP
 
 mcp = FastMCP("github-mock")
 
@@ -107,6 +110,10 @@ def send_message(to: str, body: str) -> str:
 if __name__ == "__main__":
     # MCP_TRANSPORT=streamable-http (with MCP_PORT) serves over HTTP, to test remote upstreams
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport != "stdio":
+    if transport == "stdio":
+        mcp.run()
+    elif hasattr(mcp.settings, "port"):  # mcp 1.x
         mcp.settings.port = int(os.environ.get("MCP_PORT", "8765"))
-    mcp.run(transport=transport)
+        mcp.run(transport=transport)
+    else:  # mcp 2.x takes the port as a run() argument
+        mcp.run(transport=transport, port=int(os.environ.get("MCP_PORT", "8765")))

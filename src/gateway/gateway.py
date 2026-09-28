@@ -21,6 +21,7 @@ have been blocked without blocking, for trying the gateway on real work first.
 """
 import json
 import os
+import re
 import sys
 from contextlib import AsyncExitStack
 from datetime import datetime, timezone
@@ -38,6 +39,7 @@ from .engine import FlowEngine, Verdict
 from .pins import PinStore, fingerprint
 
 ASK_CHOICES = ["allow once", "allow for this session", "block"]
+MCP_V2 = not hasattr(Server, "list_tools")  # the lowlevel Server API changed in mcp 2.0
 CONNECT_TIMEOUT_S = 60
 
 
@@ -51,6 +53,13 @@ def _expand(value):
     return value
 
 
+def field(obj, camel: str):
+    """Read an MCP model field by its camelCase name: mcp 2.x renamed fields to
+    snake_case (isError → is_error) but still accepts camelCase on construction."""
+    snake = re.sub(r"(?<!^)([A-Z])", r"_\1", camel).lower()
+    return getattr(obj, snake, None) if hasattr(obj, snake) else getattr(obj, camel, None)
+
+
 def result_text(result: types.CallToolResult) -> str:
     parts = []
     for c in result.content or []:
@@ -58,8 +67,8 @@ def result_text(result: types.CallToolResult) -> str:
             parts.append(c.text)
         elif isinstance(c, types.EmbeddedResource) and isinstance(c.resource, types.TextResourceContents):
             parts.append(c.resource.text)
-    if result.structuredContent:
-        parts.append(json.dumps(result.structuredContent, default=str))
+    if field(result, "structuredContent"):
+        parts.append(json.dumps(field(result, "structuredContent"), default=str))
     return "\n".join(parts)
 
 
@@ -80,9 +89,20 @@ class Gateway:
         self.routes: dict[str, tuple[str, str]] = {}
         self.quarantined: set[tuple[str, str]] = set()
         self.prefix = len(cfg.servers) > 1
-        self.server = Server("mcp-flow-gateway")
-        self.server.list_tools()(self.list_tools)
-        self.server.call_tool(validate_input=False)(self.call_tool)
+        if hasattr(Server, "list_tools"):  # mcp 1.x: handlers registered with decorators
+            self.server = Server("mcp-flow-gateway")
+            self.server.list_tools()(self.list_tools)
+
+            async def call_tool_v1(name: str, arguments: dict):
+                return await self.call_tool(name, arguments, self.server.request_context)
+            self.server.call_tool(validate_input=False)(call_tool_v1)
+        else:  # mcp 2.x: handlers passed to the constructor, with a request context
+            async def on_list_tools(ctx, params):
+                return types.ListToolsResult(tools=await self.list_tools())
+
+            async def on_call_tool(ctx, params):
+                return await self.call_tool(params.name, params.arguments or {}, ctx)
+            self.server = Server("mcp-flow-gateway", on_list_tools=on_list_tools, on_call_tool=on_call_tool)
 
     # ---- audit ---------------------------------------------------------------
     def audit(self, event: str, **fields):
@@ -104,9 +124,14 @@ class Gateway:
             if spec.get("transport", "http") == "sse":
                 from mcp.client.sse import sse_client
                 return await stack.enter_async_context(sse_client(spec["url"], headers=headers))
-            from mcp.client.streamable_http import streamablehttp_client
-            read, write, _ = await stack.enter_async_context(streamablehttp_client(spec["url"], headers=headers))
-            return read, write
+            import mcp.client.streamable_http as http
+            if hasattr(http, "streamablehttp_client"):  # mcp 1.x
+                streams = await stack.enter_async_context(http.streamablehttp_client(spec["url"], headers=headers))
+            else:  # mcp 2.x: headers go on the HTTP client
+                from mcp.shared._httpx_utils import create_mcp_http_client
+                client = await stack.enter_async_context(create_mcp_http_client(headers=headers))
+                streams = await stack.enter_async_context(http.streamable_http_client(spec["url"], http_client=client))
+            return streams[0], streams[1]
         cwd = Path(spec.get("cwd", self.cfg.base_dir)).expanduser()
         if not cwd.is_absolute():
             cwd = self.cfg.base_dir / cwd
@@ -134,9 +159,15 @@ class Gateway:
     async def upstream_tools(self, name: str) -> list[types.Tool]:
         tools, cursor = [], None
         while True:
-            page = await self.upstreams[name].list_tools(cursor=cursor)
+            session = self.upstreams[name]
+            if cursor is None:
+                page = await session.list_tools()
+            elif MCP_V2:
+                page = await session.list_tools(params=types.PaginatedRequestParams(cursor=cursor))
+            else:
+                page = await session.list_tools(cursor=cursor)
             tools.extend(page.tools)
-            cursor = page.nextCursor
+            cursor = field(page, "nextCursor")
             if not cursor:
                 return tools
 
@@ -145,7 +176,7 @@ class Gateway:
         routes, exposed = {}, []
         for name in self.upstreams:
             tools = await self.upstream_tools(name)
-            fps = {t.name: fingerprint(t.name, t.description, t.inputSchema) for t in tools}
+            fps = {t.name: fingerprint(t.name, t.description, field(t, "inputSchema")) for t in tools}
             changed, new = self.pins.check(name, fps)
             if new:
                 self.audit("tools_pinned", server=name, tools=new)
@@ -164,7 +195,7 @@ class Gateway:
         self.routes = routes
         return exposed
 
-    async def call_tool(self, name: str, arguments: dict):
+    async def call_tool(self, name: str, arguments: dict, ctx=None):
         args = arguments or {}
         if name not in self.routes:
             await self.list_tools()
@@ -174,7 +205,7 @@ class Gateway:
 
         verdict = self.engine.check(server, tool, args)
         if verdict.action == "ask" and self.cfg.mode == "enforce":
-            verdict = await self.ask(verdict, server, tool, args)
+            verdict = await self.ask(ctx, verdict, server, tool, args)
         if verdict.action != "allow":
             fields = dict(server=server, tool=tool, rule=verdict.rule, reason=verdict.reason)
             if self.cfg.mode == "monitor":
@@ -198,9 +229,13 @@ class Gateway:
                        session=sorted(self.engine.labels))
         return result
 
-    async def ask(self, verdict: Verdict, server: str, tool: str, args: dict) -> Verdict:
-        ctx = self.server.request_context
-        caps = ctx.session.client_params.capabilities if ctx.session.client_params else None
+    async def ask(self, ctx, verdict: Verdict, server: str, tool: str, args: dict) -> Verdict:
+        session = ctx.session if ctx is not None else None
+        caps = None
+        if session is not None:
+            caps = getattr(session, "client_capabilities", None)  # mcp 2.x
+            if caps is None and getattr(session, "client_params", None):  # mcp 1.x
+                caps = session.client_params.capabilities
         if not (caps and caps.elicitation):
             if self.cfg.ask_fallback == "allow":
                 self.audit("ask_unsupported_allowed", server=server, tool=tool, rule=verdict.rule)
@@ -211,15 +246,12 @@ class Gateway:
         preview = json.dumps(args, default=str)
         preview = preview if len(preview) <= 400 else preview[:400] + "…"
         try:
-            res = await ctx.session.elicit(
-                message=(f"Security gateway: {verdict.reason}.\n\n"
-                         f"Call: {server}/{tool} {preview}\n\nAllow this call?"),
-                requestedSchema={
-                    "type": "object",
-                    "properties": {"decision": {"type": "string", "title": "Decision",
-                                                "enum": ASK_CHOICES}},
-                    "required": ["decision"],
-                },
+            # message and schema positionally: the schema keyword was renamed in mcp 2.x
+            res = await session.elicit(
+                f"Security gateway: {verdict.reason}.\n\nCall: {server}/{tool} {preview}\n\nAllow this call?",
+                {"type": "object",
+                 "properties": {"decision": {"type": "string", "title": "Decision", "enum": ASK_CHOICES}},
+                 "required": ["decision"]},
                 related_request_id=ctx.request_id,
             )
         except Exception as e:  # noqa: BLE001 — fail closed

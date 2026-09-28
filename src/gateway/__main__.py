@@ -53,7 +53,7 @@ def hooks_snippet(config_path: str) -> dict:
 
 
 async def inspect(cfg: Config):
-    from .gateway import Gateway
+    from .gateway import Gateway, field
     from .pins import fingerprint
     gw = Gateway(cfg)
     async with AsyncExitStack() as stack:
@@ -62,7 +62,7 @@ async def inspect(cfg: Config):
         for name in gw.upstreams:
             policy = gw.engine.policies.get(name)
             tools = await gw.upstream_tools(name)
-            fps = {t.name: fingerprint(t.name, t.description, t.inputSchema) for t in tools}
+            fps = {t.name: fingerprint(t.name, t.description, field(t, "inputSchema")) for t in tools}
             changed, new = gw.pins.diff(name, fps)
             print(f"\n{name}  (policy: {policy.name if policy else 'none'}, {len(tools)} tools)")
             print(f"  {'tool':38s} {'reads':28s} {'writes':10s} note")

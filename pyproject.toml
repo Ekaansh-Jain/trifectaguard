@@ -12,7 +12,7 @@ license = {text = "MIT"}
 dependencies = ["pyyaml>=6"]
 
 [project.optional-dependencies]
-mcp = ["mcp>=1.26", "anyio>=4"]          # the MCP proxy (python -m flowguard run)
+mcp = ["mcp>=1.26,<3", "anyio>=4"]     # the MCP proxy; tested on mcp 1.26 and 2.2
 detector = ["torch", "transformers"]     # optional injection detector signal
 
 [project.scripts]
