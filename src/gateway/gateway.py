@@ -90,7 +90,7 @@ class Gateway:
         self.quarantined: set[tuple[str, str]] = set()
         self.prefix = len(cfg.servers) > 1
         if hasattr(Server, "list_tools"):  # mcp 1.x: handlers registered with decorators
-            self.server = Server("mcp-flow-gateway")
+            self.server = Server("trifectaguard")
             self.server.list_tools()(self.list_tools)
 
             async def call_tool_v1(name: str, arguments: dict):
@@ -102,12 +102,12 @@ class Gateway:
 
             async def on_call_tool(ctx, params):
                 return await self.call_tool(params.name, params.arguments or {}, ctx)
-            self.server = Server("mcp-flow-gateway", on_list_tools=on_list_tools, on_call_tool=on_call_tool)
+            self.server = Server("trifectaguard", on_list_tools=on_list_tools, on_call_tool=on_call_tool)
 
     # ---- audit ---------------------------------------------------------------
     def audit(self, event: str, **fields):
         rec = {"ts": datetime.now(timezone.utc).isoformat(), "event": event, **fields}
-        print(f"[gateway] {event}: {json.dumps(fields, default=str)}", file=sys.stderr, flush=True)
+        print(f"[trifectaguard] {event}: {json.dumps(fields, default=str)}", file=sys.stderr, flush=True)
         try:
             self.cfg.state_dir.mkdir(parents=True, exist_ok=True)
             with open(self.cfg.state_dir / "audit.jsonl", "a", encoding="utf-8") as f:
@@ -202,7 +202,7 @@ class Gateway:
         if name not in self.routes:
             await self.list_tools()
         if name not in self.routes:
-            return _error(f"[gateway] unknown or quarantined tool: {name}")
+            return _error(f"[trifectaguard] unknown or quarantined tool: {name}")
         server, tool = self.routes[name]
 
         verdict = self.engine.check(server, tool, args)
@@ -216,8 +216,8 @@ class Gateway:
             else:
                 self.audit("blocked", **fields)
                 return _error(
-                    f"[gateway blocked] {verdict.reason}. This call was stopped by the "
-                    f"MCP security gateway (rule: {verdict.rule}). Do not retry it or try "
+                    f"[trifectaguard blocked] {verdict.reason}. This call was stopped by "
+                    f"trifectaguard (rule: {verdict.rule}). Do not retry it or try "
                     f"another way to send this data; tell the user what was blocked and why."
                 )
         elif verdict.rule:

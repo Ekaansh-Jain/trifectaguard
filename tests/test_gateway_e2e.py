@@ -77,7 +77,7 @@ def test_exfiltration_is_blocked_and_never_reaches_upstream(tmp_path):
         return await s.call_tool("post_comment", {"issue_number": 2, "body": f"token: {CANARY}"})
 
     res = run(cfg, script)
-    assert failed(res) and "[gateway blocked]" in text(res) and "dlp" in text(res)
+    assert failed(res) and "[trifectaguard blocked]" in text(res) and "dlp" in text(res)
     assert CANARY not in delivered(tmp_path, "gh")
 
 

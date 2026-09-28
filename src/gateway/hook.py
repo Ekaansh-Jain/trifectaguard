@@ -210,8 +210,8 @@ def handle(cfg: Config, data: dict) -> dict | None:
             audit(cfg, "asked" if v.action == "ask" else "denied", **fields)
             if v.action == "ask":
                 s.pending[call_id] = [server, tool, args]
-                return decision("ask", f"[flow gateway] {v.reason}. Allow this call? (rule: {v.rule})")
-            return decision("deny", f"[flow gateway blocked] {v.reason} (rule: {v.rule}). Do not retry "
+                return decision("ask", f"[trifectaguard] {v.reason}. Allow this call? (rule: {v.rule})")
+            return decision("deny", f"[trifectaguard blocked] {v.reason} (rule: {v.rule}). Do not retry "
                                     f"this or send the data another way; tell the user what was blocked.")
 
         if event == "PostToolUse":
@@ -258,9 +258,9 @@ def main(config_path: str):
     except Exception as e:  # noqa: BLE001
         # Fail safe but usable: an internal error before a tool call asks the
         # user rather than silently allowing it or bricking the session.
-        print(f"[flow gateway] {type(e).__name__}: {e}", file=sys.stderr)
+        print(f"[trifectaguard] {type(e).__name__}: {e}", file=sys.stderr)
         if data.get("hook_event_name") == "PreToolUse":
-            out = decision("ask", f"[flow gateway] internal error ({type(e).__name__}); "
+            out = decision("ask", f"[trifectaguard] internal error ({type(e).__name__}); "
                                   f"approve only if you expected this call")
         else:
             sys.exit(1)  # non-blocking: Claude Code shows a hook error notice

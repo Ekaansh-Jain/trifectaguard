@@ -107,7 +107,7 @@ def run_proxy(sc, cat):
                         server, tool, args = parse_call(step)
                         res = await s.call_tool(f"{server}__{tool}" if prefix else tool, args)
                         text = " ".join(getattr(c, "text", "") for c in res.content)
-                        if field(res, "isError") and "gateway" in text:
+                        if field(res, "isError") and "trifectaguard" in text:
                             out.append(("stop", (RULE.search(text) or [None, None])[1]))
                         else:
                             out.append(("allow", None))
