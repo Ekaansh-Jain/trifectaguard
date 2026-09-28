@@ -184,8 +184,13 @@ def discover(home: Path, cwd: Path) -> tuple[list[App], list[str]]:
                              "call; the risk is highest when you approve quickly or auto-approve")
         apps.append(app)
 
+    appdata = Path(os.environ.get("APPDATA") or home / "AppData" / "Roaming")
+    desktop = next((p for p in (home / "Library/Application Support/Claude/claude_desktop_config.json",  # macOS
+                                appdata / "Claude" / "claude_desktop_config.json",                      # Windows
+                                home / ".config/Claude/claude_desktop_config.json")                     # Linux
+                    if p.exists()), home / "Library/Application Support/Claude/claude_desktop_config.json")
     for name, path, key in [
-        ("Claude Desktop", home / "Library/Application Support/Claude/claude_desktop_config.json", "mcpServers"),
+        ("Claude Desktop", desktop, "mcpServers"),
         ("Cursor", home / ".cursor/mcp.json", "mcpServers"),
         ("Cursor (this project)", cwd / ".cursor/mcp.json", "mcpServers"),
         ("Windsurf", home / ".codeium/windsurf/mcp_config.json", "mcpServers"),

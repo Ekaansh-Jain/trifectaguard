@@ -20,7 +20,6 @@ run their hooks concurrently).
 
   settings: python -m src.gateway hooks-snippet -c gateway.yaml
 """
-import fcntl
 import json
 import os
 import re
@@ -34,6 +33,30 @@ from .engine import FlowEngine
 from .rules import ServerPolicy
 
 BUILTIN = "claude-code"  # server name used for Claude Code's own tools
+
+try:  # an exclusive lock per session file: fcntl on macOS/Linux, msvcrt on Windows
+    import fcntl
+
+    def _lock(f):
+        fcntl.flock(f, fcntl.LOCK_EX)
+
+    def _unlock(f):
+        fcntl.flock(f, fcntl.LOCK_UN)
+except ImportError:
+    import msvcrt
+
+    def _lock(f):
+        f.seek(0)
+        while True:
+            try:
+                msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)  # retries for ~10 s, then raises
+                return
+            except OSError:
+                continue
+
+    def _unlock(f):
+        f.seek(0)
+        msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
 SESSION_TTL_S = 7 * 24 * 3600
 _SAFE_ID = re.compile(r"[^A-Za-z0-9_.-]")
 
@@ -99,8 +122,8 @@ class Session:
 
     def __enter__(self):
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.lock = open(self.lock_path, "w")
-        fcntl.flock(self.lock, fcntl.LOCK_EX)
+        self.lock = open(self.lock_path, "a+")
+        _lock(self.lock)
         policies = self.cfg.policies()
         builtin = self.cfg.builtin or {"policy": BUILTIN}
         policies[BUILTIN] = ServerPolicy.load(builtin.get("policy", BUILTIN), builtin.get("vars"))
@@ -129,7 +152,7 @@ class Session:
             tmp.write_text(json.dumps({"engine": self.engine.to_state(), "pending": self.pending}))
             os.chmod(tmp, 0o600)
             tmp.replace(self.path)
-        fcntl.flock(self.lock, fcntl.LOCK_UN)
+        _unlock(self.lock)
         self.lock.close()
 
 

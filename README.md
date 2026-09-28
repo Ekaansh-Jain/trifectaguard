@@ -1,5 +1,8 @@
 # trifectaguard
 
+[![tests](https://github.com/Ekaansh-Jain/trifectaguard/actions/workflows/tests.yml/badge.svg)](https://github.com/Ekaansh-Jain/trifectaguard/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/trifectaguard)](https://pypi.org/project/trifectaguard/)
+
 **Stop AI agents from leaking your data or acting for an attacker, whatever
 the injected instruction says.**
 
@@ -23,7 +26,7 @@ Desktop, Cursor, …), or as a **Python library** for your own agents
 ## Quick start
 
 ```bash
-pip install "trifectaguard[mcp]"   # Python 3.10+; the [mcp] extra is only needed for the proxy
+pip install "trifectaguard[mcp]"   # Python 3.10–3.13; the [mcp] extra is only needed for the proxy
 trifectaguard scan                 # read-only: what could an injection make your AI apps do?
 ```
 
