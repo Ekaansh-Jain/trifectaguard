@@ -131,6 +131,25 @@ inspected further, and a model can paraphrase a secret past DLP (the flow rules
 still apply). GitHub repo visibility comes from your config, not the API. Only
 tools are proxied (not resources/prompts), over stdio.
 
+## Related projects
+
+Other open-source guards for Claude Code, described from their own READMEs and
+source at the commit read (2026-09-28). **Not measured side by side**: this is
+how each is documented to work, not a benchmark.
+
+| | Acts on | Blocks or warns | Session memory | Notes from their docs/source |
+|---|---|---|---|---|
+| [lasso-security/claude-hooks](https://github.com/lasso-security/claude-hooks) (`8fbfd14`) | tool **output** (PostToolUse) | warns only | no | ~96 regex patterns in 4 categories (instruction override, role-play, encoding, context manipulation) |
+| [dwarvesf/claude-guardrails](https://github.com/dwarvesf/claude-guardrails) (`b3c3e15`) | tool calls (PreToolUse), prompts, output | blocks (deny rules, command checks); output scan warns | no | mostly Claude Code permission deny rules for sensitive paths; its README notes Bash reads aren't covered by `Read` deny rules. Its output scanner reads a `tool_output` field; Claude Code's documented field is `tool_response` |
+| [slavaspitsyn/claude-code-security-hooks](https://github.com/slavaspitsyn/claude-code-security-hooks) (`c4f126a`) | tool calls (PreToolUse) | blocks | no | per-command rules: credential path + network tool in the same command, read guards for credential directories, POST domain whitelist, canary files |
+| **this project** | tool calls **and** output, across the whole session | asks or blocks | **yes** | labels what the session has read (untrusted / private / credentials) and checks where each call sends data and who chose the destination; also runs as an MCP proxy and a Python library |
+
+The difference in approach: the others judge each call or output on its own
+(patterns, paths, command shapes); this project judges a call by what the
+session has already read and where the call sends it, independent of how an
+injection is worded. They are complementary: path deny rules and a guard like
+this one can run together.
+
 ## Setup
 
 ```bash
