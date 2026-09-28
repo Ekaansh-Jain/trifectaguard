@@ -28,7 +28,7 @@ class Claude:
     def _hook(self, payload):
         r = subprocess.run([sys.executable, "-m", "src.gateway", "hook", "-c", str(self.cfg_path)],
                            input=json.dumps({"session_id": "s1", **payload}), capture_output=True,
-                           text=True, cwd=ROOT, timeout=30)
+                           text=True, encoding="utf-8", cwd=ROOT, timeout=30)
         assert r.returncode == 0, r.stderr
         return json.loads(r.stdout) if r.stdout.strip() else None
 
@@ -136,7 +136,7 @@ def test_lost_state_is_not_a_clean_slate(tmp_path):
 def test_hooks_snippet_is_valid_settings(tmp_path):
     c = Claude(tmp_path)
     r = subprocess.run([sys.executable, "-m", "src.gateway", "hooks-snippet", "-c", str(c.cfg_path)],
-                       capture_output=True, text=True, cwd=ROOT, check=True)
+                       capture_output=True, text=True, encoding="utf-8", cwd=ROOT, check=True)
     hooks = json.loads(r.stdout)["hooks"]
     assert set(hooks) == {"UserPromptSubmit", "PreToolUse", "PostToolUse"}
     assert "src.gateway hook -c" in hooks["PreToolUse"][0]["hooks"][0]["command"]
@@ -195,7 +195,7 @@ def test_suggest_reads_the_monitor_log(tmp_path):
     for _ in range(3):
         c.tool("WebFetch", {"url": "https://docs.vendor.example/x", "prompt": "p"})
     r = subprocess.run([sys.executable, "-m", "src.gateway", "suggest", "-c", str(c.cfg_path)],
-                       capture_output=True, text=True, cwd=ROOT, check=True).stdout
+                       capture_output=True, text=True, encoding="utf-8", cwd=ROOT, check=True).stdout
     assert "https://docs.vendor.example/*" in r and "trusted_urls" in r
 
 
@@ -218,6 +218,6 @@ def test_replay_counts_what_the_hooks_would_have_done(tmp_path):
     t = tmp_path / "session.jsonl"
     t.write_text("\n".join(json.dumps(r) for r in rows))
     out = subprocess.run([sys.executable, "-m", "src.gateway", "replay", str(t)],
-                         capture_output=True, text=True, cwd=ROOT, check=True).stdout
+                         capture_output=True, text=True, encoding="utf-8", cwd=ROOT, check=True).stdout
     assert "4 tool calls" in out and re.search(r"would have denied:\s+1 ", out) and "secret-exfiltration" in out
     assert "sk-live-0123456789abcdefghij" not in out

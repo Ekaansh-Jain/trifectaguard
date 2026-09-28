@@ -22,7 +22,7 @@ class PinStore:
     def __init__(self, path: Path):
         self.path = Path(path)
         try:
-            self.pins = json.loads(self.path.read_text())
+            self.pins = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             self.pins = {}
 
@@ -51,4 +51,4 @@ class PinStore:
 
     def _save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(self.pins, indent=2, sort_keys=True))
+        self.path.write_text(json.dumps(self.pins, indent=2, sort_keys=True), encoding="utf-8")

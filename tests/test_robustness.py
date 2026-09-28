@@ -19,7 +19,7 @@ def cfg(tmp_path):
 
 
 def hook(c, payload, raw=None):
-    r = subprocess.run([sys.executable, "-m", "src.gateway", "hook", "-c", c], cwd=ROOT, text=True,
+    r = subprocess.run([sys.executable, "-m", "src.gateway", "hook", "-c", c], cwd=ROOT, text=True, encoding="utf-8",
                        input=raw if raw is not None else json.dumps(payload), capture_output=True, timeout=60)
     return r.returncode, r.stdout, r.stderr
 
@@ -92,3 +92,18 @@ def test_hook_stays_fast_as_a_session_grows(tmp_path):
     code, _, _ = hook(cfg(tmp_path), {"hook_event_name": "PreToolUse", "session_id": "long", "tool_name": "Bash",
                                       "tool_input": {"command": "pytest -q"}})
     assert code == 0 and time.time() - t < 2.0, time.time() - t
+
+
+def test_non_english_text_is_read_correctly_whatever_the_platform_encoding(tmp_path):
+    """Windows defaults to cp1252. Claude Code sends UTF-8; bytes like 0x81/0x8f in
+    UTF-8 text (Ł, ō, many CJK characters) are undefined in cp1252, so decoding with
+    the platform default failed, and failing closed then blocked ordinary calls."""
+    c = cfg(tmp_path)
+    ev = {"hook_event_name": "PostToolUse", "session_id": "w", "tool_name": "Read",
+          "tool_input": {"file_path": "/p/notes.md"}, "tool_response": "Łódź, Tōkyō, 東京, 中文 — ✓"}
+    r = subprocess.run([sys.executable, "-m", "src.gateway", "hook", "-c", c], cwd=ROOT,
+                       input=json.dumps(ev, ensure_ascii=False).encode("utf-8"), capture_output=True,
+                       env={**os.environ, "PYTHONIOENCODING": "cp1252", "PYTHONUTF8": "0"}, timeout=60)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")
+    state = json.loads((tmp_path / "state" / "sessions" / "w.json").read_text(encoding="utf-8"))
+    assert "東京" in " ".join(state["engine"]["trusted_text"])

@@ -30,7 +30,7 @@ class Config:
     @classmethod
     def load(cls, path: str) -> "Config":
         path = Path(path).expanduser().resolve()
-        doc = yaml.safe_load(path.read_text()) or {}
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         if not doc.get("servers") and not doc.get("builtin"):
             raise ValueError(f"{path}: no servers configured")
         cfg = cls(servers=doc.get("servers") or {}, base_dir=path.parent)

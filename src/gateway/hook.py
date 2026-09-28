@@ -85,7 +85,7 @@ class ProjectApprovals:
 
     def load(self) -> dict:
         try:
-            return json.loads(self.path.read_text())
+            return json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return {}
 
@@ -99,14 +99,14 @@ class ProjectApprovals:
         data[project] = sorted([s, t, list(d)] for s, t, d in items)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(data, indent=2))
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         os.chmod(tmp, 0o600)
         tmp.replace(self.path)
 
     def clear(self, project: str | None = None):
         data = {} if project is None else {k: v for k, v in self.load().items() if k != project}
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(data, indent=2))
+        self.path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
 
 class Session:
@@ -122,7 +122,7 @@ class Session:
 
     def __enter__(self):
         self.dir.mkdir(parents=True, exist_ok=True)
-        self.lock = open(self.lock_path, "a+")
+        self.lock = open(self.lock_path, "a+", encoding="utf-8")
         _lock(self.lock)
         policies = self.cfg.policies()
         builtin = self.cfg.builtin or {"policy": BUILTIN}
@@ -132,7 +132,7 @@ class Session:
         self.pending = {}
         if self.path.exists():
             try:
-                state = json.loads(self.path.read_text())
+                state = json.loads(self.path.read_text(encoding="utf-8"))
                 self.engine.load_state(state.get("engine", {}))
                 self.pending = state.get("pending", {})
             except (ValueError, TypeError, AttributeError) as e:
@@ -149,7 +149,7 @@ class Session:
     def __exit__(self, exc_type, *_):
         if exc_type is None:
             tmp = self.path.with_suffix(".tmp")
-            tmp.write_text(json.dumps({"engine": self.engine.to_state(), "pending": self.pending}))
+            tmp.write_text(json.dumps({"engine": self.engine.to_state(), "pending": self.pending}), encoding="utf-8")
             os.chmod(tmp, 0o600)
             tmp.replace(self.path)
         _unlock(self.lock)
@@ -159,7 +159,7 @@ class Session:
 def audit(cfg: Config, event: str, **fields):
     try:
         cfg.state_dir.mkdir(parents=True, exist_ok=True)
-        with open(cfg.state_dir / "audit.jsonl", "a") as f:
+        with open(cfg.state_dir / "audit.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps({"ts": datetime.now(timezone.utc).isoformat(), "event": event,
                                 "source": "claude-code-hook", **fields}, default=str) + "\n")
     except OSError:
@@ -233,7 +233,9 @@ def handle(cfg: Config, data: dict) -> dict | None:
 
 def main(config_path: str):
     try:
-        data = json.load(sys.stdin)
+        # Claude Code sends UTF-8; don't let the platform default (cp1252 on
+        # Windows) mangle it or fail on non-English text
+        data = json.loads(sys.stdin.buffer.read().decode("utf-8", errors="replace"))
         if not isinstance(data, dict):
             raise ValueError("hook input is not a JSON object")
     except ValueError as e:

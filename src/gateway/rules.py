@@ -109,7 +109,7 @@ class ServerPolicy:
         if not path.exists():
             presets = sorted(p.stem for p in PRESET_DIR.glob("*.yaml"))
             raise FileNotFoundError(f"no policy {spec!r} (presets: {', '.join(presets)})")
-        doc = yaml.safe_load(path.read_text()) or {}
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         return cls.from_dict(doc, variables, default_name=path.stem)
 
     @classmethod

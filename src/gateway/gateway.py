@@ -110,7 +110,7 @@ class Gateway:
         print(f"[gateway] {event}: {json.dumps(fields, default=str)}", file=sys.stderr, flush=True)
         try:
             self.cfg.state_dir.mkdir(parents=True, exist_ok=True)
-            with open(self.cfg.state_dir / "audit.jsonl", "a") as f:
+            with open(self.cfg.state_dir / "audit.jsonl", "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, default=str) + "\n")
         except OSError:
             pass

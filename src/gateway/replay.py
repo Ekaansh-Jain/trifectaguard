@@ -38,7 +38,7 @@ def _text(content) -> str:
 def events(transcript: Path):
     """Yield hook events (dicts) in the order Claude Code would have fired them."""
     sid = transcript.stem
-    for line in transcript.read_text(errors="replace").splitlines():
+    for line in transcript.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             m = json.loads(line)
         except ValueError:

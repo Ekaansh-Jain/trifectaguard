@@ -68,7 +68,7 @@ class Finding:
 
 def _load_json(path: Path):
     try:
-        return json.loads(path.read_text())
+        return json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
 
@@ -94,7 +94,7 @@ def _gateway_upstreams(spec: dict) -> dict | None:
         return None
     cfg = args[args.index("-c") + 1] if "-c" in args[:-1] else None
     try:
-        return (yaml.safe_load(Path(cfg).expanduser().read_text()) or {}).get("servers") or {} if cfg else {}
+        return (yaml.safe_load(Path(cfg).expanduser().read_text(encoding="utf-8")) or {}).get("servers") or {} if cfg else {}
     except OSError:
         return {}
 

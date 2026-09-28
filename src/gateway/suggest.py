@@ -22,7 +22,7 @@ def _events(cfg: Config) -> list[dict]:
     if not path.exists():
         return []
     out = []
-    for line in path.read_text().splitlines():
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         try:
             out.append(json.loads(line))
         except ValueError:
