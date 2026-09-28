@@ -82,6 +82,23 @@ The one guarded benign failure: after its leak attempt was refused, the model
 stopped without sending the summary the user asked for. One scenario, small
 samples.
 
+**Second live run** (current engine, after the red-team fixes; fresh random
+sample, seed 1; free-tier daily token caps stopped both runs early, so every
+completed pair is from banking):
+
+| Model | Attack pairs | Attacks succeeded (none → flow) | Benign pairs | Benign done (none → flow) | Benign failures caused by an ask |
+|---|---|---|---|---|---|
+| gpt-oss-120b | 6 | 5 → **0** | 10 | 6 → 5 | 3 |
+| gpt-oss-20b | 0 | – | 10 | 9 → 4 | 3 |
+
+Every ask behind a benign failure was an action driven by a document someone
+else sent (update my address from this letter, change the rent payment per
+the landlord's notice, pay this bill), which is exactly how a malicious letter
+or bill would attack; with a human in the loop these are approvals, not
+failures. The other benign differences had no ask and are provider
+nondeterminism. Combined with the first run, gpt-oss-120b attacks went from
+12/18 undefended to 0/18 with flow control. Still small samples.
+
 **Adaptive red team** (`eval/redteam/adaptive.py`): attacks written against the
 rules themselves: laundering through shared files and the agent's own notes,
 look-alike addresses, spelled-out addresses, contacts poisoning, link-choice
