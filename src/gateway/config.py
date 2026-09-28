@@ -53,7 +53,9 @@ class Config:
             assert f.get("action") in ("ask", "block", "allow"), f"flow {f.get('name')}: bad action"
 
     def policies(self) -> dict:
+        """policy: a preset name, a path, or an inline policy (a dict with tools)."""
         return {
-            name: ServerPolicy.load(s["policy"], s.get("vars"))
+            name: (ServerPolicy.from_dict(s["policy"], s.get("vars"), default_name=name)
+                   if isinstance(s["policy"], dict) else ServerPolicy.load(s["policy"], s.get("vars")))
             for name, s in self.servers.items() if s.get("policy")
         }

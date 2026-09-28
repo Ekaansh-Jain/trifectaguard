@@ -35,6 +35,8 @@ jobs:
                   print(f"::error title={case.get('classname')}.{case.get('name')}::{msg}")
       - name: Red-team suite (attacks on trifectaguard's own rules)
         run: python eval/redteam/adaptive.py
+      - name: Master scenarios through the library, the Claude Code hooks and the MCP proxy
+        run: python eval/scenarios/run.py
       - name: The installed command works
         run: trifectaguard scan --json
         continue-on-error: true  # exits 1 when the runner's own setup is exposed; that's fine here

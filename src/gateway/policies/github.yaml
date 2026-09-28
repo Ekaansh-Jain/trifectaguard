@@ -16,7 +16,11 @@ x-read: &read
     reads: [untrusted]
   - reads: [untrusted, private]
 
+# A repo listed as public is public even if a broader private_repos pattern
+# (like "your-org/*") also matches it: check public first.
 x-write: &write
+  - when: {"{owner}/{repo}": $public_repos}
+    writes: public
   - when: {"{owner}/{repo}": $private_repos}
     writes: internal
   - writes: public

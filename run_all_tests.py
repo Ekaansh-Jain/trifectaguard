@@ -19,6 +19,8 @@ CHECKS = [
       "tests/test_shell.py", "tests/test_robustness.py"]),
     ("adaptive red-team suite (attacks on the gateway's own rules)",
      [sys.executable, "eval/redteam/adaptive.py"]),
+    ("master scenarios: library, Claude Code hooks, MCP proxy (eval/scenarios)",
+     [sys.executable, "eval/scenarios/run.py"]),
     ("unit: taint engine", [sys.executable, "tests/test_taint.py"]),
     ("gateway decision suite (rules+LLM)", [sys.executable, "test_gateway_suite.py", "--llm"]),
     ("end-to-end system (detector+gate+adjudicator)", [sys.executable, "test_system.py"]),
