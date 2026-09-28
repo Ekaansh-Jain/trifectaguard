@@ -104,6 +104,9 @@ def _fill(src: Source, policy: ServerPolicy, tools: list[str], secrets_reachable
     always_untrusted = []
     for tool in tools:
         variants = policy._exact.get(tool) or next((v for p, v in policy._globs if p == tool), [])
+        if variants and variants[0].get("classifier") == "shell":  # a shell can do all of it
+            variants = [{"reads": ["untrusted", "private", "secret"], "writes": w}
+                        for w in ("external", "unknown", "destructive")]
         if variants and all("untrusted" in v.get("reads", []) for v in variants):
             always_untrusted.append(tool)
         for v in variants:

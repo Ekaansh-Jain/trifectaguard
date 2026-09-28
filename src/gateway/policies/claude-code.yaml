@@ -17,28 +17,34 @@ vars:
   # writes here change what runs next: CI, git hooks, shell startup, agent config
   exec_paths: ["*/.github/workflows/*", "*/.git/hooks/*", "*/.bashrc", "*/.zshrc",
                "*/.profile", "*/.bash_profile", "*/.zprofile", "*/.config/fish/*",
-               "*/Library/LaunchAgents/*", "*/.claude/*", "*/.mcp.json",
+               "*/Library/LaunchAgents/*", "*/.claude/settings*.json", "*/.claude/hooks/*",
+               "*/.claude/commands/*", "*/.claude/agents/*", "*/.claude/skills/*", "*/.mcp.json",
                "*/.cursor/*", "*/.vscode/tasks.json", "*/crontab"]
   shared_paths: []  # synced/shared folders: a write there leaves the machine
   trusted_urls: []  # e.g. "https://docs.python.org/*"
-  # commands that can send data off the machine
-  egress_commands: ["*curl *", "*wget *", "*nc *", "*ncat *", "*netcat *", "*socat *",
-                    "*ssh *", "*scp *", "*sftp *", "*rsync *", "*ftp *", "*telnet *",
-                    "*/dev/tcp/*", "*/dev/udp/*", "*git push*", "*git remote add*",
-                    "*gh *", "*npm publish*", "*twine upload*", "*docker push*",
-                    "*aws *", "*gcloud *", "*gsutil *", "*az *", "*nslookup *", "*dig *",
-                    "*http *", "*https *", "*mail *", "*sendmail*", "*open http*"]
-  # commands whose real behaviour isn't visible in their text
-  opaque_commands: ["*base64 -d*", "*base64 --decode*", "*eval *", "*| sh*", "*|sh*",
-                    "*| bash*", "*|bash*", "*| zsh*", "*python* -c*", "*node -e*",
-                    "*perl -e*", "*ruby -e*", "*osascript*", "*xxd -r*"]
-  # commands that touch credential files or dump the environment
-  secret_commands: ["*.env*", "*id_rsa*", "*id_ed25519*", "*.pem*", "*.p12*", "*/.aws/*",
-                    "*/.ssh/*", "*credentials*", "*secret*", "*.netrc*", "*.npmrc*", "*.pypirc*",
-                    "*kube/config*", "*docker/config.json*", "*printenv*", "env", "export -p*"]
-  destructive_commands: ["*rm -rf*", "*rm -r *", "*rm -fr*", "*git reset --hard*",
-                         "*git clean -f*", "*git push --force*", "*git push -f*",
-                         "*drop table*", "*drop database*", "*mkfs*", "*dd if=*"]
+  # Bash is parsed into programs and arguments (src/gateway/shell.py); these lists
+  # name programs, not substrings, so `grep -c` or "email" never match.
+  egress_programs: [curl, wget, nc, ncat, netcat, socat, ssh, scp, sftp, rsync, ftp, tftp, telnet,
+                    mail, mailx, sendmail, http, https, xh, aws, gcloud, gsutil, az, nslookup, dig, host]
+  egress_subcommands: ["git push", "git remote add", "git send-email", "npm publish", "pnpm publish",
+                       "yarn publish", "twine upload", "docker push", "docker login", "cargo publish",
+                       "gem push", "gh api", "gh pr create", "gh pr comment", "gh pr edit", "gh pr merge",
+                       "gh pr review", "gh issue create", "gh issue comment", "gh issue edit",
+                       "gh release create", "gh gist create", "gh repo create", "gh secret set"]
+  # these bring back content someone else wrote
+  fetch_subcommands: ["git clone", "git pull", "git fetch", "gh pr view", "gh pr diff", "gh pr list",
+                      "gh pr checks", "gh issue view", "gh issue list", "gh run view", "gh repo view", "gh api"]
+  # inline code (python -c, node -e, heredocs): network use is visible as imports and calls,
+  # not as words (a script editing a README that mentions "https" isn't networking)
+  network_modules: [urllib, urllib3, requests, httpx, http.client, httplib2, socket, aiohttp, smtplib,
+                    ftplib, paramiko, pycurl, websocket, websockets, openai, anthropic, groq, boto3,
+                    axios, node-fetch, "http", "https", net]
+  dynamic_code_markers: ["exec(", "eval(", "compile(", "__import__", "importlib", "b64decode", "codecs",
+                         "marshal", "subprocess", "os.system", "os.popen", "child_process", "Function("]
+  secret_code_markers: [".env", "dotenv", "credentials", "id_rsa", ".aws/", ".ssh/"]
+  destructive_commands: ["rm -rf*", "rm -r *", "rm -fr*", "git reset --hard*", "git clean -*f*",
+                         "git push*--force*", "git push -f*", "*drop table*", "*drop database*", "mkfs*",
+                         "dd if=*"]
 
 x-read: &read
   - when: {file_path: $secret_paths}
@@ -77,22 +83,7 @@ tools:
       destination: [url]
       destination_carries_data: true
   Bash:
-    # order matters: a compound command matching several lists takes the first
-    - when: {command: $egress_commands, "{command}": $secret_commands}  # e.g. curl -d @.env …
-      reads: [untrusted, private, secret]
-      writes: external
-    - when: {command: $egress_commands}
-      reads: [untrusted, private]
-      writes: external
-    - when: {command: $opaque_commands}
-      reads: [untrusted, private]
-      writes: unknown
-    - when: {command: $destructive_commands}
-      reads: [private]
-      writes: destructive
-    - when: {command: $secret_commands}  # cat .env, grep … ~/.aws/credentials, printenv
-      reads: [private, secret]
-    - reads: [private]
+    classifier: shell
 
 # Claude Code's other tools (todo lists, subagents, questions to you, …) move no
 # data by themselves; subagents' own tool calls go through the hook as well.

@@ -8,6 +8,7 @@ CLI for the MCP flow-control gateway.
 
 Audit this machine (read-only; no config needed):
   python -m src.gateway scan [--json]
+  python -m src.gateway replay [TRANSCRIPT.jsonl …]   # how often would it have stepped in on past Claude Code sessions?
 
 Fewer prompts:
   python -m src.gateway suggest -c config.yaml            # config ideas from the audit log
@@ -94,6 +95,9 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     scan = sub.add_parser("scan", help="read-only audit of the AI apps on this machine")
     scan.add_argument("--json", action="store_true")
+    rp = sub.add_parser("replay", help="run past Claude Code sessions through the hooks (read-only)")
+    rp.add_argument("transcripts", nargs="*", help="session .jsonl files (default: this directory's sessions)")
+    rp.add_argument("-c", "--config", help="hooks config (default: Claude Code built-in tools only)")
     for name in ("run", "inspect", "repin", "hook", "hooks-snippet", "suggest", "approvals"):
         p = sub.add_parser(name)
         p.add_argument("-c", "--config")
@@ -114,6 +118,15 @@ def main():
     if args.cmd == "scan":
         from .scan import main as scan_main
         sys.exit(scan_main(as_json=args.json))
+    if args.cmd == "replay":
+        from .replay import default_transcripts, render, replay
+        paths = [Path(t) for t in args.transcripts] or default_transcripts(Path.cwd())
+        if not paths:
+            sys.exit("no Claude Code sessions found for this directory; pass transcript paths "
+                     "(~/.claude/projects/<project>/*.jsonl)")
+        cfg = Config.load(args.config) if args.config else Config(servers={}, builtin={"policy": "claude-code"})
+        print(render(replay(paths, cfg)))
+        return
 
     if args.cmd in ("hook", "hooks-snippet"):
         path = args.config or os.environ.get("MCP_GATEWAY_CONFIG")

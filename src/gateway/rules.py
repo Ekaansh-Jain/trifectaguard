@@ -134,6 +134,10 @@ class ServerPolicy:
                     break
         if variants is None:
             return self.default
+        if variants[0].get("classifier") == "shell":  # parse the command instead of matching its text
+            from .shell import classify
+            reads, writes = classify(str(args.get("command", "")), self.vars)
+            return Role(frozenset(reads), writes, f"{self.name}:{key}[shell]", True)
         for i, v in enumerate(variants):
             if self._holds(v.get("when"), args) and not self._holds(v.get("unless"), args, empty=False):
                 return Role(

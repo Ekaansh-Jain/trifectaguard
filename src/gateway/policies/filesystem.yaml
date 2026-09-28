@@ -16,7 +16,8 @@ vars:
   # add "*/package.json", "*/Makefile" for stricter setups (noisier for coding)
   exec_paths: ["*/.github/workflows/*", "*/.git/hooks/*", "*/.bashrc", "*/.zshrc",
                "*/.profile", "*/.bash_profile", "*/.zprofile", "*/.config/fish/*",
-               "*/Library/LaunchAgents/*", "*/.claude/*", "*/.cursor/*",
+               "*/Library/LaunchAgents/*", "*/.claude/settings*.json", "*/.claude/hooks/*",
+               "*/.claude/commands/*", "*/.claude/agents/*", "*/.claude/skills/*", "*/.cursor/*",
                "*/.mcp.json", "*/.vscode/tasks.json", "*/crontab"]
 
 x-read: &read

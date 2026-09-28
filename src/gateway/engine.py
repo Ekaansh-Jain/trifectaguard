@@ -154,7 +154,7 @@ class FlowEngine:
             return Verdict("allow")
         where = f"{server}/{tool}"
         # never echo any part of the secret: this text reaches the agent and logs
-        if dlp.leaked(json.dumps(args, default=str), self.secrets):
+        if role.writes != "local" and dlp.leaked(json.dumps(args, default=str), self.secrets):
             return Verdict(
                 "block", "dlp",
                 f"{where} would send a credential the session read from "
@@ -192,6 +192,11 @@ class FlowEngine:
         # a call that itself reads private data or secrets (curl -d @.env …) can
         # send them in the same step, so its own reads count too
         labels = set(self.labels) | (set(role.reads) & {"private", "secret"})
+        # A page fetch sends only its URL, which the approval prompt shows in full,
+        # and a secret inside it is already caught by the DLP check above. So for
+        # fetch-like calls the flow rules ask rather than block: copied links
+        # can only leak through which one gets opened, new ones the user can read.
+        choice_only = bool(dests) and role.destination_carries_data
         for flow in self.flows:
             if role.writes not in flow["sinks"]:
                 continue
@@ -199,8 +204,8 @@ class FlowEngine:
                 continue
             if flow.get("skip_if_destination_trusted") and dest_trusted:
                 continue
-            worst = self._maybe(worst, flow["action"], flow["name"], approved,
-                                self._explain(flow, where, role))
+            action = "ask" if choice_only and flow["action"] == "block" else flow["action"]
+            worst = self._maybe(worst, action, flow["name"], approved, self._explain(flow, where, role))
         return worst
 
     @staticmethod
