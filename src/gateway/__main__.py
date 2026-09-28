@@ -90,7 +90,7 @@ async def inspect(cfg: Config):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="python -m src.gateway")
+    ap = argparse.ArgumentParser(prog="trifectaguard" if not (__package__ or "").startswith("src.") else "python -m src.gateway")
     sub = ap.add_subparsers(dest="cmd", required=True)
     scan = sub.add_parser("scan", help="read-only audit of the AI apps on this machine")
     scan.add_argument("--json", action="store_true")

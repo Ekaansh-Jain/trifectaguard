@@ -1,6 +1,6 @@
-# MCP flow-control gateway config. Copy to gateway.yaml, then point your MCP
-# client at ONE server:  python -m src.gateway run -c /abs/path/gateway.yaml
-# Check how every tool is classified first:  python -m src.gateway inspect -c gateway.yaml
+# trifectaguard MCP proxy config. Copy to gateway.yaml, then point your MCP
+# client at ONE server:  trifectaguard run -c /abs/path/gateway.yaml
+# Check how every tool is classified first:  trifectaguard inspect -c gateway.yaml
 
 mode: enforce          # monitor = log what would be blocked/asked, change nothing
 ask_fallback: block    # if the client can't show approval prompts: block | allow

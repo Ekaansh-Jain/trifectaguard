@@ -45,3 +45,4 @@ results/system_test.txt
 results/agentdojo/*.log
 results/agentdojo/live_smoke.jsonl
 build/
+dist/

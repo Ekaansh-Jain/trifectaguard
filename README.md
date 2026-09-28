@@ -23,9 +23,8 @@ Desktop, Cursor, …), or as a **Python library** for your own agents
 ## Quick start
 
 ```bash
-git clone https://github.com/Ekaansh-Jain/trifectaguard && cd trifectaguard
-pip install ".[mcp]"          # Python 3.10+; the [mcp] extra is only needed for the proxy
-trifectaguard scan                # read-only: what could an injection make your AI apps do?
+pip install "trifectaguard[mcp]"   # Python 3.10+; the [mcp] extra is only needed for the proxy
+trifectaguard scan                 # read-only: what could an injection make your AI apps do?
 ```
 
 `trifectaguard scan` reads the MCP configs of Claude Code, Claude Desktop, Cursor,
@@ -56,6 +55,7 @@ approvals) that removes repeat prompts without weakening the rules.
 ### Claude Code
 
 ```bash
+curl -O https://raw.githubusercontent.com/Ekaansh-Jain/trifectaguard/main/hooks.example.yaml
 cp hooks.example.yaml hooks.yaml          # list your MCP servers; starts in monitor mode
 trifectaguard hooks-snippet -c hooks.yaml     # paste the output into ~/.claude/settings.json
 ```
@@ -74,6 +74,7 @@ project`, a destination you approve in a project isn't asked again there.
 ### Any MCP app (Claude Desktop, Cursor, …)
 
 ```bash
+curl -O https://raw.githubusercontent.com/Ekaansh-Jain/trifectaguard/main/gateway.example.yaml
 cp gateway.example.yaml gateway.yaml      # your servers + which repos are public/private
 trifectaguard inspect -c gateway.yaml         # how every tool is classified
 ```
@@ -188,6 +189,7 @@ and a benchmark of injection detectors on tool outputs, including a fine-tuned
 ModernBERT (`scripts/`, `data/`, results and corrections in RESULTS.md).
 
 ```bash
+git clone https://github.com/Ekaansh-Jain/trifectaguard && cd trifectaguard
 pip install ".[mcp]" agentdojo openai python-dotenv
 cp .env.example .env                              # Groq / NVIDIA NIM / Gemini keys, for live-model runs only
 python run_all_tests.py --no-llm                  # every test, no API calls
