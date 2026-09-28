@@ -207,7 +207,8 @@ class Gateway:
         if verdict.action == "ask" and self.cfg.mode == "enforce":
             verdict = await self.ask(ctx, verdict, server, tool, args)
         if verdict.action != "allow":
-            fields = dict(server=server, tool=tool, rule=verdict.rule, reason=verdict.reason)
+            dests = self.engine._destinations(self.engine.role(server, tool, args), args)
+            fields = dict(server=server, tool=tool, rule=verdict.rule, reason=verdict.reason, destinations=dests)
             if self.cfg.mode == "monitor":
                 self.audit(f"would_{verdict.action}", **fields)
             else:

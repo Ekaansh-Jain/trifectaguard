@@ -52,11 +52,46 @@ def response_text(resp) -> str:
     return json.dumps(resp, default=str)
 
 
+class ProjectApprovals:
+    """Destinations the user approved in a project, kept across sessions when
+    remember_approvals: project. Only destination-scoped approvals are stored
+    (an email address, a URL, an account), never "allow this tool"."""
+
+    def __init__(self, cfg: Config):
+        self.path = cfg.state_dir / "project_approvals.json"
+
+    def load(self) -> dict:
+        try:
+            return json.loads(self.path.read_text())
+        except (OSError, ValueError):
+            return {}
+
+    def for_project(self, project: str) -> set:
+        return {(s, t, tuple(d)) for s, t, d in self.load().get(project, [])}
+
+    def add(self, project: str, entry: tuple):
+        data = self.load()
+        items = {tuple(map(lambda x: tuple(x) if isinstance(x, list) else x, e)) for e in data.get(project, [])}
+        items.add(entry)
+        data[project] = sorted([s, t, list(d)] for s, t, d in items)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2))
+        os.chmod(tmp, 0o600)
+        tmp.replace(self.path)
+
+    def clear(self, project: str | None = None):
+        data = {} if project is None else {k: v for k, v in self.load().items() if k != project}
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text(json.dumps(data, indent=2))
+
+
 class Session:
     """Load → mutate → save one session's engine under an exclusive lock."""
 
-    def __init__(self, cfg: Config, session_id: str):
+    def __init__(self, cfg: Config, session_id: str, project: str = ""):
         self.cfg = cfg
+        self.project = project
         sid = _SAFE_ID.sub("_", session_id or "default")
         self.dir = cfg.state_dir / "sessions"
         self.path = self.dir / f"{sid}.json"
@@ -84,6 +119,8 @@ class Session:
                 for label in ("untrusted", "private", "secret"):
                     self.engine.labels[label] = "unknown (session state was lost)"
                 audit(self.cfg, "state_reset", session=self.path.stem, error=f"{type(e).__name__}: {e}")
+        if self.cfg.remember_approvals == "project" and self.project:
+            self.engine.approvals |= ProjectApprovals(self.cfg).for_project(self.project)
         return self
 
     def __exit__(self, exc_type, *_):
@@ -128,7 +165,7 @@ def decision(action: str, reason: str) -> dict:
 def handle(cfg: Config, data: dict) -> dict | None:
     """Process one hook event; returns the JSON to print, or None for no opinion."""
     event = data.get("hook_event_name")
-    with Session(cfg, data.get("session_id")) as s:
+    with Session(cfg, data.get("session_id"), data.get("cwd") or "") as s:
         if event == "UserPromptSubmit":
             s.engine.trust(data.get("prompt") or "")
             return None
@@ -141,7 +178,9 @@ def handle(cfg: Config, data: dict) -> dict | None:
             v = s.engine.check(server, tool, args)
             if v.action == "allow":
                 return None
-            fields = dict(server=server, tool=tool, rule=v.rule, reason=v.reason, session=data.get("session_id"))
+            dests = s.engine._destinations(s.engine.role(server, tool, args), args)
+            fields = dict(server=server, tool=tool, rule=v.rule, reason=v.reason, destinations=dests,
+                          session=data.get("session_id"))
             if cfg.mode == "monitor":
                 audit(cfg, f"would_{v.action}", **fields)
                 return None
@@ -158,8 +197,11 @@ def handle(cfg: Config, data: dict) -> dict | None:
                 # it ran, so the user said yes: don't ask again for this destination
                 # (sinks without a destination are approved one call at a time)
                 a_server, a_tool, a_args = asked
-                if s.engine._destinations(s.engine.role(a_server, a_tool, a_args), a_args):
+                dests = s.engine._destinations(s.engine.role(a_server, a_tool, a_args), a_args)
+                if dests:
                     s.engine.approve(None, a_server, a_tool, a_args)
+                    if cfg.remember_approvals == "project" and data.get("cwd"):
+                        ProjectApprovals(cfg).add(data["cwd"], (a_server, a_tool, s.engine._dest_key(dests)))
                 audit(cfg, "approved", server=a_server, tool=a_tool, session=data.get("session_id"))
             s.engine.observe(server, tool, args, response_text(data.get("tool_response")))
             return None

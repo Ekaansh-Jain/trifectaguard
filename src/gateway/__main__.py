@@ -9,6 +9,10 @@ CLI for the MCP flow-control gateway.
 Audit this machine (read-only; no config needed):
   python -m src.gateway scan [--json]
 
+Fewer prompts:
+  python -m src.gateway suggest -c config.yaml            # config ideas from the audit log
+  python -m src.gateway approvals -c config.yaml [--clear] [--project PATH]
+
 Claude Code hook mode (no proxy; sees your request and Claude Code's own tools):
   python -m src.gateway hooks-snippet -c gateway.yaml   # settings.json block to paste
   python -m src.gateway hook -c gateway.yaml            # what the hooks run (reads JSON on stdin)
@@ -90,12 +94,15 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     scan = sub.add_parser("scan", help="read-only audit of the AI apps on this machine")
     scan.add_argument("--json", action="store_true")
-    for name in ("run", "inspect", "repin", "hook", "hooks-snippet"):
+    for name in ("run", "inspect", "repin", "hook", "hooks-snippet", "suggest", "approvals"):
         p = sub.add_parser(name)
         p.add_argument("-c", "--config")
         p.add_argument("--policy", help="policy preset/path for a single upstream given after --")
         if name == "repin":
             p.add_argument("--server", help="only re-pin this server (default: all)")
+        if name == "approvals":
+            p.add_argument("--clear", action="store_true")
+            p.add_argument("--project", help="only this project directory")
     argv = sys.argv[1:]
     command = []
     if "--" in argv:
@@ -121,6 +128,27 @@ def main():
         return
 
     cfg = load(args)
+    if args.cmd == "suggest":
+        from .suggest import report
+        print(report(cfg))
+        return
+    if args.cmd == "approvals":
+        from .hook import ProjectApprovals
+        store = ProjectApprovals(cfg)
+        if args.clear:
+            store.clear(args.project)
+            print(f"cleared remembered approvals for {args.project or 'all projects'}")
+            return
+        data = store.load()
+        for project, items in data.items():
+            if args.project and project != args.project:
+                continue
+            print(project)
+            for server, tool, dests in items:
+                print(f"  {server}/{tool} → {', '.join(dests)}")
+        if not data:
+            print("no remembered approvals (set remember_approvals: project to keep them across sessions)")
+        return
     if args.cmd == "run":
         import anyio
         from .gateway import Gateway

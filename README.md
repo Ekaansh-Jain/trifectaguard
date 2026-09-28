@@ -49,7 +49,9 @@ unprotected high-risk combination exists, so it can gate CI.
 | [MCP proxy](#any-mcp-app-claude-desktop-cursor-) | any MCP app; local (stdio) and remote (HTTP/SSE) servers | a real Claude Desktop chat |
 | [Python library](#your-own-agent-python) | LangChain/LangGraph, OpenAI Agents SDK, your own loop | a live LangGraph agent |
 
-Start any of them in `mode: monitor` to see what it *would* stop before it stops anything.
+Start any of them in `mode: monitor` to see what it *would* stop before it stops anything,
+then `flowguard suggest -c <config>` proposes config (trusted sites, remembered
+approvals) that removes repeat prompts without weakening the rules.
 
 ### Claude Code
 
@@ -64,7 +66,10 @@ whole session across built-in tools and MCP servers, and asks through Claude
 Code's normal approval prompt. It only ever answers "ask" or "deny", never
 "allow", so it can't loosen your permission settings. `Bash` is classified from
 its text (commands that can send data out or hide what they do get the
-scrutiny); that can't be complete, so keep Claude Code's own Bash permissions on.
+scrutiny); that can't be complete, so keep Claude Code's own Bash permissions
+on, and for strong guarantees on shell commands use Claude Code's `/sandbox`
+(OS-level network limits) alongside flowguard. With `remember_approvals:
+project`, a destination you approve in a project isn't asked again there.
 
 ### Any MCP app (Claude Desktop, Cursor, …)
 
@@ -150,10 +155,12 @@ Method, disclosed post-hoc changes and every number: [RESULTS.md](RESULTS.md).
   agent picks, what text it writes to a legitimate recipient, or its final answer.
 - Security depends on the policies being right; a misclassified tool is a hole.
   `flowguard inspect` and `flowguard scan` show what each tool is treated as.
-- `Bash` classification in Claude Code is pattern-based.
+- `Bash` classification in Claude Code is pattern-based: pair it with Claude
+  Code's `/sandbox` for shell commands.
 - GitHub repo visibility comes from your config, not the API.
 - The proxy forwards tools (not MCP resources or prompts).
-- Nobody outside this project has tried to break it yet: please do.
+- Nobody outside this project has tried to break it yet: please do
+  ([SECURITY.md](SECURITY.md)).
 
 ## Related projects
 
