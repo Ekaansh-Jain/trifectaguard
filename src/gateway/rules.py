@@ -37,6 +37,7 @@ This module knows nothing about MCP, so the same policies can guard any agent's
 tool calls.
 """
 import fnmatch
+import functools
 import string
 from dataclasses import dataclass
 from pathlib import Path
@@ -83,6 +84,11 @@ def _glob_any(value, patterns) -> bool:
     )
 
 
+@functools.lru_cache(maxsize=64)
+def _read_policy(path: str) -> dict:
+    return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+
 class ServerPolicy:
     def __init__(self, name: str, tools: dict, variables: dict, default: Role = UNCLASSIFIED):
         self.name = name
@@ -109,8 +115,7 @@ class ServerPolicy:
         if not path.exists():
             presets = sorted(p.stem for p in PRESET_DIR.glob("*.yaml"))
             raise FileNotFoundError(f"no policy {spec!r} (presets: {', '.join(presets)})")
-        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        return cls.from_dict(doc, variables, default_name=path.stem)
+        return cls.from_dict(_read_policy(str(path)), variables, default_name=path.stem)
 
     @classmethod
     def from_dict(cls, doc: dict, variables: dict | None = None, default_name: str = "policy") -> "ServerPolicy":

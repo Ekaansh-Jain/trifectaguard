@@ -73,6 +73,9 @@ DESTINATION_ACTION = "ask"  # a destination that came from untrusted content
 # your own disk), so they can't be attacker-owned; what's sent there is still
 # covered by the label rules.
 INSIDE_BOUNDARY = {"internal", "local"}
+# sinks whose arguments can reach someone else: access changes go to a service,
+# executable config (CI) can print values into logs
+LEAVES = {"public", "external", "internal", "unknown", "privileged", "exec"}
 
 LABEL_TEXT = {
     "untrusted": "untrusted content",
@@ -154,7 +157,9 @@ class FlowEngine:
             return Verdict("allow")
         where = f"{server}/{tool}"
         # never echo any part of the secret: this text reaches the agent and logs
-        if role.writes != "local" and dlp.leaked(json.dumps(args, default=str), self.secrets):
+        # DLP guards calls whose arguments can reach someone else; a local edit
+        # or a deletion (`rm -rf build && …`) doesn't send them anywhere
+        if role.writes in LEAVES and dlp.leaked(json.dumps(args, default=str), self.secrets):
             return Verdict(
                 "block", "dlp",
                 f"{where} would send a credential the session read from "

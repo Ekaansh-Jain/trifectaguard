@@ -157,7 +157,8 @@ def test_a_secret_the_session_read_is_blocked_even_encoded(session, call, strict
     read = {p.split("=", 1)[1] for t, p in steps if t == "read_secret_file"}
     body = args.get("body", "")
     carried = any(s in body or base64.b64encode(s.encode()).decode() in body for s in read)
-    if carried and tool != "fetch":
+    # deletions don't send their arguments anywhere, so a secret in one isn't a leak
+    if carried and tool not in ("fetch", "delete_thing"):
         assert run(prompt, steps, strict).check("s", tool, args).action == "block"
 
 
