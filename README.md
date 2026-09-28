@@ -151,6 +151,12 @@ AgentDojo banking (7/12 and 6/12 unprotected) and 0/20 in a LangGraph agent
 (11/20 unprotected), and it blocked exfiltration in real Claude Code and Claude
 Desktop sessions. Prompt-injection detectors
 (including this repo's own) hid clean data on 39–74% of benign tasks.
+On a second public benchmark, [InjecAgent](https://github.com/uiuc-kang-lab/InjecAgent)
+(1,054 attacks, policy drafted automatically and frozen first), 0% of
+data-stealing and 3.3% of direct-harm attacks got through. Replaying 248,346
+tool calls from 4,096 other people's coding-agent sessions, it interrupted
+0.03–0.17% of calls. [SCENARIOS.md](SCENARIOS.md) shows what it stops and lets
+through, checked on every push.
 Method, disclosed post-hoc changes and every number: [RESULTS.md](RESULTS.md).
 
 ## Limits
