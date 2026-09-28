@@ -6,6 +6,9 @@ CLI for the MCP flow-control gateway.
   python -m src.gateway inspect -c gateway.yaml         # how is every tool classified?
   python -m src.gateway repin -c gateway.yaml [--server github]
 
+Audit this machine (read-only; no config needed):
+  python -m src.gateway scan [--json]
+
 Claude Code hook mode (no proxy; sees your request and Claude Code's own tools):
   python -m src.gateway hooks-snippet -c gateway.yaml   # settings.json block to paste
   python -m src.gateway hook -c gateway.yaml            # what the hooks run (reads JSON on stdin)
@@ -85,6 +88,8 @@ async def inspect(cfg: Config):
 def main():
     ap = argparse.ArgumentParser(prog="python -m src.gateway")
     sub = ap.add_subparsers(dest="cmd", required=True)
+    scan = sub.add_parser("scan", help="read-only audit of the AI apps on this machine")
+    scan.add_argument("--json", action="store_true")
     for name in ("run", "inspect", "repin", "hook", "hooks-snippet"):
         p = sub.add_parser(name)
         p.add_argument("-c", "--config")
@@ -98,6 +103,10 @@ def main():
         argv, command = argv[:i], argv[i + 1:]
     args = ap.parse_args(argv)
     args.command = command
+
+    if args.cmd == "scan":
+        from .scan import main as scan_main
+        sys.exit(scan_main(as_json=args.json))
 
     if args.cmd in ("hook", "hooks-snippet"):
         path = args.config or os.environ.get("MCP_GATEWAY_CONFIG")

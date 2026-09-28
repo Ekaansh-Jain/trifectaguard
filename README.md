@@ -55,6 +55,21 @@ python -m src.gateway run -c gateway.yaml           # the command your MCP clien
 python -m src.gateway run --policy github -- npx -y @modelcontextprotocol/server-github   # one server, no config
 ```
 
+### Start here: scan your setup (read-only)
+
+```bash
+python -m flowguard scan        # or: python -m src.gateway scan, from this checkout
+```
+
+It reads the MCP configs of Claude Code, Claude Desktop, Cursor, Windsurf and
+VS Code and reports, in plain language, every combination an injected
+instruction could use: *untrusted input → reads your credentials/private
+data → sends it out*, plus writes to files that run code and account changes
+or deletions. It changes nothing, starts no servers, never opens credential
+files (it only checks which common ones exist) and never prints tokens from
+your configs. `--json` for machine-readable output; exits 1 if an unprotected
+high-risk combination exists, so it can gate CI.
+
 ### Three ways to run it (same engine, same policies)
 
 | | For | Verified |
