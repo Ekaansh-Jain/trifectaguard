@@ -91,9 +91,11 @@ async def inspect(cfg: Config):
 
 
 def main():
-    for stream in (sys.stdout, sys.stderr):  # →, ✓ etc. must not crash a cp1252 pipe on Windows
+    for stream in (sys.stdout, sys.stderr):
+        # Always write UTF-8: on Windows, piped output otherwise defaults to cp1252,
+        # which garbles →, ✓, • for whatever reads it (and can't encode some at all)
         if hasattr(stream, "reconfigure"):
-            stream.reconfigure(errors="replace")
+            stream.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(prog="trifectaguard" if not (__package__ or "").startswith("src.") else "python -m src.gateway")
     sub = ap.add_subparsers(dest="cmd", required=True)
     scan = sub.add_parser("scan", help="read-only audit of the AI apps on this machine")
