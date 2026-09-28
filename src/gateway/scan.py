@@ -129,7 +129,8 @@ def _source(name: str, spec: dict, creds: list[str], protected=False) -> Source:
         src.untrusted, src.sinks = ["(any tool)"], {"unknown": ["(any tool)"]}
         return src
     policy = ServerPolicy.load(preset)
-    roots = [Path(a).expanduser() for a in map(str, spec.get("args", [])) if a.startswith(("/", "~"))]
+    roots = [Path(a).expanduser() for a in map(str, spec.get("args", []))
+             if a.startswith("~") or os.path.isabs(a)]  # /…, ~/…, and C:\… on Windows
     reachable = preset != "filesystem" or any(
         Path(c).expanduser().is_relative_to(r) for c in creds for r in roots)
     _fill(src, policy, list(policy._exact) + [p for p, _ in policy._globs], reachable)

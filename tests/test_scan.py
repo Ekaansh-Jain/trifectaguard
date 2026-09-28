@@ -120,3 +120,12 @@ def test_unprotected_high_risk_exits_nonzero_for_ci(tmp_path, capsys):
     assert main(as_json=True, home=str(home), cwd=str(cwd)) == 1
     report = json.loads(capsys.readouterr().out)
     assert report["apps"][0]["name"] == "Claude Code" and report["apps"][0]["findings"]
+
+
+def test_windows_style_absolute_root_is_recognised(tmp_path, monkeypatch):
+    """A filesystem server rooted at C:\\Users\\me must count as reaching C:\\Users\\me\\.aws."""
+    import src.gateway.scan as scan
+    monkeypatch.setattr(scan.os.path, "isabs", lambda a: a.startswith(("/", "C:\\")))
+    src = scan._source("files", {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem",
+                                                             str(tmp_path)]}, [str(tmp_path / ".aws" / "credentials")])
+    assert src.secret, "credential file under the root should be reachable"

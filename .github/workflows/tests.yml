@@ -28,7 +28,8 @@ jobs:
           import xml.etree.ElementTree as ET
           for case in ET.parse("junit.xml").iter("testcase"):
               for bad in list(case.iter("failure")) + list(case.iter("error")):
-                  msg = (bad.get("message") or bad.text or "")[:500].replace("%", "%25").replace("\r", "").replace("\n", "%0A")
+                  detail = (bad.get("message") or "") + "\n" + (bad.text or "")[-1500:]
+                  msg = detail.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
                   print(f"::error title={case.get('classname')}.{case.get('name')}::{msg}")
       - name: Red-team suite (attacks on trifectaguard's own rules)
         run: python eval/redteam/adaptive.py

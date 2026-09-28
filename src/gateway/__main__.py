@@ -91,6 +91,9 @@ async def inspect(cfg: Config):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):  # →, ✓ etc. must not crash a cp1252 pipe on Windows
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(errors="replace")
     ap = argparse.ArgumentParser(prog="trifectaguard" if not (__package__ or "").startswith("src.") else "python -m src.gateway")
     sub = ap.add_subparsers(dest="cmd", required=True)
     scan = sub.add_parser("scan", help="read-only audit of the AI apps on this machine")
