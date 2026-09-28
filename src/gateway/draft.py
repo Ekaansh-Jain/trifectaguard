@@ -26,7 +26,9 @@ EXTERNAL = {"send", "share", "transfer", "pay", "post", "publish", "upload", "fo
             "retweet", "comment", "email", "message", "mail", "invite", "book", "order", "purchase", "buy",
             "donate", "submit", "trade", "sell", "withdraw", "deposit", "call", "sms", "text", "notify",
             "broadcast", "reserve", "checkout", "tip", "request", "export", "sync", "dm", "follow",
-            "like", "repost", "subscribe", "apply", "refer", "transmit", "dispatch", "wire"}
+            "like", "repost", "subscribe", "apply", "refer", "transmit", "dispatch", "wire",
+            # filling or clicking in a web page hands what you enter to that site
+            "fill", "autofill", "input", "type", "click"}
 PRIVILEGED = {"grant", "unlock", "lock", "update", "modify", "change", "set", "edit", "enable", "control",
               "manage", "schedule", "register", "authorize", "assign", "approve", "move", "turn", "adjust",
               "start", "stop", "activate", "configure", "install", "reset", "restore", "block", "unblock",
@@ -38,7 +40,7 @@ PRIVILEGED_OBJECTS = {"guest", "access", "permission", "permissions", "password"
                       "policy", "rule", "rules", "door", "lock", "alarm", "device", "settings", "setting"}
 INTERNAL = {"create", "add", "save", "write", "append", "insert", "copy", "rename", "tag", "mark", "star",
             "bookmark", "label", "sort", "organize", "merge", "duplicate", "archive", "draft", "note",
-            "record", "log", "store", "upsert", "put", "input", "fill", "type", "click", "select", "scroll"}
+            "record", "log", "store", "upsert", "put", "select", "scroll"}
 READ = {"get", "search", "read", "view", "list", "retrieve", "check", "find", "query", "lookup", "look",
         "browse", "fetch", "download", "show", "describe", "navigate", "scan", "analyze", "track", "monitor",
         "count", "calculate", "compute", "estimate", "convert", "translate", "summarize", "recommend",

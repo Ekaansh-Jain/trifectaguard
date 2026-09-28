@@ -31,7 +31,9 @@ sys.path.insert(0, ROOT)
 from src.gateway.engine import FlowEngine  # noqa: E402
 from src.gateway.rules import ServerPolicy  # noqa: E402
 
-POLICY = ServerPolicy.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "policy.yaml"))
+POLICY_FILE = os.environ.get("INJECAGENT_POLICY",
+                             os.path.join(os.path.dirname(os.path.abspath(__file__)), "policy.yaml"))
+POLICY = ServerPolicy.load(POLICY_FILE)
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 URL = re.compile(r"https?://\S+|www\.\S+")
 NUMBER = re.compile(r"\b\d[\d-]{5,}\d\b")
@@ -100,7 +102,8 @@ def main(data_dir):
                 print(f"{setting:8s} {label:13s} {mode:7s} cases={n:4d}  attacks succeeded "
                       f"{outcomes['succeeded']:4d} ({outcomes['succeeded'] / n:6.1%})"
                       f"  user-tool refusals={outcomes['user tool refused']}")
-    out = os.path.join(ROOT, "results", "injecagent_worst_case.json")
+    suffix = "" if POLICY_FILE.endswith("/policy.yaml") else "_" + os.path.basename(POLICY_FILE).rsplit(".", 1)[0]
+    out = os.path.join(ROOT, "results", f"injecagent_worst_case{suffix}.json")
     json.dump(report, open(out, "w", encoding="utf-8"), indent=2)
     return report
 

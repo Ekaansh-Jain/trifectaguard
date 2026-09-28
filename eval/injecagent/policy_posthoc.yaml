@@ -1,0 +1,956 @@
+name: injecagent
+tools:
+  TerminalExecute:
+    writes: privileged
+  GmailSendEmail:
+    writes: external
+    destination:
+    - to
+  GmailSearchEmails:
+    reads:
+    - untrusted
+    - private
+  GmailReadEmail:
+    reads:
+    - untrusted
+    - private
+  GmailOrganizeEmail:
+    writes: internal
+  GmailDeleteEmails:
+    writes: destructive
+  GmailAddOrUpdateContact:
+    writes: internal
+  GmailDeleteContact:
+    writes: destructive
+  GmailSearchContacts:
+    reads:
+    - untrusted
+    - private
+  GmailDownloadAttachment:
+    reads:
+    - untrusted
+    - private
+  GoogleCalendarCreateOrUpdateEvent:
+    writes: internal
+  GoogleCalendarDeleteEvents:
+    writes: destructive
+  GoogleCalendarReadEvents:
+    reads:
+    - untrusted
+    - private
+  GoogleCalendarSearchEvents:
+    reads:
+    - untrusted
+    - private
+  GoogleCalendarSendInvitations:
+    writes: external
+  GoogleCalendarSetReminder:
+    writes: privileged
+  GoogleCalendarGetEventsFromSharedCalendar:
+    reads:
+    - untrusted
+    - private
+  BankManagerGetAccountInformation:
+    reads:
+    - untrusted
+    - private
+  BankManagerTransferFunds:
+    writes: external
+    destination:
+    - from_account_number
+    - to_account_number
+  BankManagerSearchPayee:
+    reads:
+    - untrusted
+    - private
+  BankManagerPayBill:
+    writes: external
+    destination:
+    - from_account_number
+    - service_account_number
+  BankManagerGetAccountStatement:
+    reads:
+    - untrusted
+    - private
+  BankManagerSearchTransactions:
+    reads:
+    - untrusted
+    - private
+  AmazonSearchProducts:
+    reads:
+    - untrusted
+    - private
+  AmazonGetProductDetails:
+    reads:
+    - untrusted
+    - private
+  AmazonAddToCart:
+    writes: internal
+  AmazonViewCart:
+    reads:
+    - untrusted
+    - private
+  AmazonRemoveFromCart:
+    writes: destructive
+  AmazonPlaceOrder:
+    writes: privileged
+    destination:
+    - shipping_address
+  AmazonSearchOrderHistory:
+    reads:
+    - untrusted
+    - private
+  AmazonViewOrderDetails:
+    reads:
+    - untrusted
+    - private
+  AmazonManageWishlist:
+    writes: privileged
+  AmazonViewSavedAddresses:
+    reads:
+    - untrusted
+    - private
+  AmazonViewSavedPaymentMethods:
+    reads:
+    - untrusted
+    - private
+  AmazonPostReview:
+    writes: external
+  ExpediaSearchFlights:
+    reads:
+    - untrusted
+    - private
+  ExpediaGetFlightDetails:
+    reads:
+    - untrusted
+    - private
+  ExpediaSearchAccommodations:
+    reads:
+    - untrusted
+    - private
+  ExpediaSearchReservations:
+    reads:
+    - untrusted
+    - private
+  ExpediaCancelReservations:
+    writes: destructive
+  ExpediaRetrieveSavedInformation:
+    reads:
+    - untrusted
+    - private
+  TwitterManagerPostTweet:
+    writes: external
+  TwitterManagerSearchTweets:
+    reads:
+    - untrusted
+    - private
+  TwitterManagerReadTweet:
+    reads:
+    - untrusted
+    - private
+  TwitterManagerDeleteTweets:
+    writes: destructive
+  TwitterManagerFollowUsers:
+    writes: external
+  TwitterManagerUnfollowUsers:
+    writes: destructive
+  TwitterManagerGetUserProfile:
+    reads:
+    - untrusted
+    - private
+  TwitterManagerLikeTweet:
+    writes: external
+  TwitterManagerUnlikeTweet:
+    writes: external
+  TwitterManagerRetweet:
+    writes: external
+  TwitterManagerReplyToTweet:
+    writes: external
+  GoogleHomeSearchDevices:
+    reads:
+    - untrusted
+    - private
+  GoogleHomeListDeviceActions:
+    reads:
+    - untrusted
+    - private
+  GoogleHomeControlDevice:
+    writes: privileged
+  GoogleHomeScheduleDeviceAction:
+    writes: privileged
+  GoogleHomePlayMedia:
+    writes: privileged
+  GoogleHomeSetReminder:
+    writes: privileged
+  GoogleHomeListReminders:
+    reads:
+    - untrusted
+    - private
+  DropboxUploadFile:
+    writes: external
+  DropboxDownloadFile:
+    reads:
+    - untrusted
+    - private
+  DropboxListFilesAndFolders:
+    reads:
+    - untrusted
+    - private
+  DropboxCreateFolder:
+    writes: internal
+  DropboxShareItem:
+    writes: external
+    destination:
+    - recipient_email
+  DropboxDeleteItem:
+    writes: destructive
+  DropboxSearchItems:
+    reads:
+    - untrusted
+    - private
+  DropboxGetItemMetadata:
+    reads:
+    - untrusted
+    - private
+  DropboxMoveItem:
+    writes: privileged
+  DropboxCreateLink:
+    writes: internal
+  DropboxDisableLink:
+    writes: destructive
+  TeladocSearchDoctors:
+    reads:
+    - untrusted
+    - private
+  TeladocScheduleAppointment:
+    writes: privileged
+  TeladocManageAppointments:
+    writes: privileged
+  TeladocRequestPrescription:
+    writes: external
+  TeladocViewPrescriptions:
+    reads:
+    - untrusted
+    - private
+  TeladocSendMessage:
+    writes: external
+  TeladocViewReviews:
+    reads:
+    - untrusted
+    - private
+  FacebookManagerGetUserProfile:
+    reads:
+    - untrusted
+    - private
+  FacebookManagerUpdateUserProfile:
+    writes: privileged
+  FacebookManagerSearchFriends:
+    reads:
+    - untrusted
+    - private
+  FacebookManagerCreatePost:
+    writes: internal
+  FacebookManagerSearchPosts:
+    reads:
+    - untrusted
+    - private
+  FacebookManagerGetPost:
+    reads:
+    - untrusted
+    - private
+  FacebookManagerUpdatePost:
+    writes: privileged
+  FacebookManagerDeletePost:
+    writes: destructive
+  FacebookManagerCreateComment:
+    writes: internal
+  FacebookManagerGetMessages:
+    reads:
+    - untrusted
+    - private
+  FacebookManagerSendMessage:
+    writes: external
+  TodoistCreateTask:
+    writes: internal
+  TodoistUpdateTask:
+    writes: privileged
+  TodoistDeleteTask:
+    writes: destructive
+  TodoistSearchTasks:
+    reads:
+    - untrusted
+    - private
+  TodoistSetReminder:
+    writes: privileged
+  TodoistShareTask:
+    writes: external
+    destination:
+    - user_email
+  VenmoSendMoney:
+    writes: external
+    destination:
+    - recipient_username
+  VenmoRequestMoney:
+    writes: external
+    destination:
+    - requestee_username
+  VenmoHandleRequest:
+    writes: privileged
+  VenmoCheckBalance:
+    reads:
+    - untrusted
+    - private
+  VenmoAddMoney:
+    writes: internal
+  VenmoWithdrawMoney:
+    writes: external
+  VenmoSearchTransactions:
+    reads:
+    - untrusted
+    - private
+  VenmoViewFriendsList:
+    reads:
+    - untrusted
+    - private
+  VenmoSearchUsers:
+    reads:
+    - untrusted
+    - private
+  VenmoListLinkedAccounts:
+    reads:
+    - untrusted
+    - private
+  DeepfakeGeneratorVerifyDeepfake:
+    reads:
+    - untrusted
+    - private
+  The23andMeGetGeneticData:
+    reads:
+    - untrusted
+    - private
+  The23andMeGetHealthRecommendations:
+    reads:
+    - untrusted
+    - private
+  The23andMeGetGeneticInsights:
+    reads:
+    - untrusted
+    - private
+  The23andMeSetDataPrivacy:
+    writes: privileged
+  The23andMeListThirdPartyApps:
+    reads:
+    - untrusted
+    - private
+  The23andMeShareData:
+    writes: external
+  The23andMeDownloadData:
+    reads:
+    - untrusted
+    - private
+  The23andMeUpdateData:
+    writes: privileged
+  The23andMeDeleteData:
+    writes: destructive
+  GoogleSearchWebSearch:
+    reads:
+    - untrusted
+    - private
+  GoogleSearchImageSearch:
+    reads:
+    - untrusted
+    - private
+  GoogleSearchVideoSearch:
+    reads:
+    - untrusted
+    - private
+  GoogleSearchNewsSearch:
+    reads:
+    - untrusted
+    - private
+  GoogleSearchGetSearchTrends:
+    reads:
+    - untrusted
+    - private
+  GoogleSearchGetSearchHistory:
+    reads:
+    - untrusted
+    - private
+  WebBrowserNavigateTo:
+    reads:
+    - untrusted
+    - private
+  WebBrowserRetrieveElements:
+    reads:
+    - untrusted
+    - private
+  WebBrowserGetElementsDetails:
+    reads:
+    - untrusted
+    - private
+  WebBrowserInputText:
+    writes: external
+  WebBrowserClickElement:
+    writes: external
+  WebBrowserSearchHistory:
+    reads:
+    - untrusted
+    - private
+  WebBrowserClearHistory:
+    writes: destructive
+  NortonIdentitySafeStorePassword:
+    writes: privileged
+    destination:
+    - username
+  NortonIdentitySafeCheckPasswordStrength:
+    reads:
+    - untrusted
+    - private
+  NortonIdentitySafeAutoFillPassword:
+    writes: external
+  NortonIdentitySafeSearchPasswords:
+    reads:
+    - untrusted
+    - private
+  NortonIdentitySafeStorePersonalInfo:
+    writes: internal
+  NortonIdentitySafeAutoFillPersonalInfo:
+    writes: external
+  NortonIdentitySafeRetrievePersonalInfo:
+    reads:
+    - untrusted
+    - private
+  NortonIdentitySafeSharePassword:
+    writes: external
+    destination:
+    - username
+    - contact_email
+  NortonIdentitySafeExportPasswords:
+    writes: external
+  NortonIdentitySafeEnableTwoFactorAuthentication:
+    writes: privileged
+    destination:
+    - phone_number
+  NortonIdentitySafeDisableTwoFactorAuthentication:
+    writes: destructive
+  AugustSmartLockCheckLockStatus:
+    writes: privileged
+  AugustSmartLockLockDoor:
+    writes: privileged
+  AugustSmartLockUnlockDoor:
+    writes: privileged
+  AugustSmartLockSearchGuests:
+    writes: privileged
+  AugustSmartLockAddGuest:
+    writes: privileged
+    destination:
+    - guest_email
+  AugustSmartLockDeleteGuest:
+    writes: privileged
+  AugustSmartLockGrantGuestAccess:
+    writes: privileged
+  AugustSmartLockRevokeGuestAccess:
+    writes: privileged
+  AugustSmartLockGenerateTemporaryAccessCode:
+    writes: privileged
+  AugustSmartLockRevokeTemporaryAccessCode:
+    writes: privileged
+  AugustSmartLockViewAccessHistory:
+    writes: privileged
+  IFTTTSearchConnectedServices:
+    reads:
+    - untrusted
+    - private
+  IFTTTSearchTriggers:
+    reads:
+    - untrusted
+    - private
+  IFTTTSearchActions:
+    reads:
+    - untrusted
+    - private
+  IFTTTCreateApplet:
+    writes: internal
+  IFTTTSearchApplets:
+    reads:
+    - untrusted
+    - private
+  IFTTTUpdateApplet:
+    writes: privileged
+  IFTTTDeleteApplets:
+    writes: destructive
+  EvernoteManagerCreateNote:
+    writes: internal
+  EvernoteManagerReadNote:
+    reads:
+    - untrusted
+    - private
+  EvernoteManagerUpdateNote:
+    writes: privileged
+  EvernoteManagerDeleteNote:
+    writes: destructive
+  EvernoteManagerCreateNotebook:
+    writes: internal
+  EvernoteManagerReadNotebook:
+    reads:
+    - untrusted
+    - private
+  EvernoteManagerUpdateNotebook:
+    writes: privileged
+  EvernoteManagerDeleteNotebook:
+    writes: destructive
+  EvernoteManagerSearchNotes:
+    reads:
+    - untrusted
+    - private
+  EvernoteManagerManageNoteSharingLevel:
+    writes: privileged
+    destination:
+    - email
+  EvernoteManagerSearchNotebooks:
+    reads:
+    - untrusted
+    - private
+  SlackSendMessage:
+    writes: external
+    destination:
+    - recipient
+  SlackCreateChannel:
+    writes: internal
+  SlackSearchMessage:
+    reads:
+    - untrusted
+    - private
+  SlackSearchChannelOrUser:
+    reads:
+    - untrusted
+    - private
+  SlackUpdateProfileAndStatus:
+    writes: privileged
+  SlackManageMembership:
+    writes: privileged
+  SlackGetUserDetails:
+    reads:
+    - untrusted
+    - private
+  SlackDownloadFile:
+    reads:
+    - untrusted
+    - private
+  TwilioSendSms:
+    writes: external
+  TwilioGetSmsHistory:
+    reads:
+    - untrusted
+    - private
+  TwilioGetReceivedSmsMessages:
+    reads:
+    - untrusted
+    - private
+  TwilioGetSmsPricing:
+    reads:
+    - untrusted
+    - private
+  TwilioGetPhoneNumberInfo:
+    reads:
+    - untrusted
+    - private
+  TwilioGetScheduledActions:
+    reads:
+    - untrusted
+    - private
+  TwilioCancelScheduledAction:
+    writes: destructive
+  GoogleMapGetCurrentLocation:
+    reads:
+    - untrusted
+    - private
+  GoogleMapSearchLocations:
+    reads:
+    - untrusted
+    - private
+  GoogleMapGetLocationDetails:
+    reads:
+    - untrusted
+    - private
+  GoogleMapGetDirections:
+    reads:
+    - untrusted
+    - private
+  GoogleMapGetLocationReviews:
+    reads:
+    - untrusted
+    - private
+  GoogleMapSearchAddressBook:
+    reads:
+    - untrusted
+    - private
+  GoogleMapAddAddress:
+    writes: internal
+  IndoorRobotGetCurrentState:
+    reads:
+    - untrusted
+    - private
+  IndoorRobotListRooms:
+    reads:
+    - untrusted
+    - private
+  IndoorRobotGoToRoom:
+    writes: privileged
+  IndoorRobotFindObjects:
+    reads:
+    - untrusted
+    - private
+  IndoorRobotLookAroundObject:
+    reads:
+    - untrusted
+    - private
+  IndoorRobotGetAllowedOperations:
+    reads:
+    - untrusted
+    - private
+  IndoorRobotApplyAllowedOperation:
+    writes: external
+  IndoorRobotFindPeople:
+    reads:
+    - untrusted
+    - private
+  EmergencyDispatchSystemCreateDispatchRequest:
+    writes: external
+  EmergencyDispatchSystemRedirectDispatchResources:
+    writes: external
+  EmergencyDispatchSystemEstimateDispatchTime:
+    writes: external
+  EmergencyDispatchSystemFindNearbyResources:
+    writes: external
+  EmergencyDispatchSystemGetIncidentData:
+    writes: external
+  EmergencyDispatchSystemGetResourceData:
+    writes: external
+  EmergencyDispatchSystemEditIncident:
+    writes: external
+  EmergencyDispatchSystemSearchIncidents:
+    writes: external
+  EthereumManagerCallSmartContractFunction:
+    writes: external
+    destination:
+    - contract_address
+  EthereumManagerTransferEther:
+    writes: external
+    destination:
+    - from_address
+    - to_address
+  EthereumManagerCreateEthereumAccount:
+    writes: internal
+  EthereumManagerEstimateGasCost:
+    reads:
+    - untrusted
+    - private
+  EthereumManagerSignMessage:
+    writes: external
+  EthereumManagerVerifyMessage:
+    reads:
+    - untrusted
+    - private
+  EthereumManagerQueryEthereumData:
+    reads:
+    - untrusted
+    - private
+  BinanceGetAccountBalances:
+    reads:
+    - untrusted
+    - private
+  BinanceRetrieveAccounts:
+    reads:
+    - untrusted
+    - private
+  BinanceDeposit:
+    writes: external
+  BinanceWithdraw:
+    writes: external
+    destination:
+    - destination_address
+  BinancePlaceOrder:
+    writes: privileged
+  BinanceModifyOrder:
+    writes: privileged
+  BinanceCancelOrder:
+    writes: destructive
+  BinanceGetRealTimePrice:
+    reads:
+    - untrusted
+    - private
+  BinanceGetOrderHistory:
+    reads:
+    - untrusted
+    - private
+  BinanceGetTradeHistory:
+    reads:
+    - untrusted
+    - private
+  ShopifySearchProducts:
+    reads:
+    - untrusted
+    - private
+  ShopifyGetProductDetails:
+    reads:
+    - untrusted
+    - private
+  ShopifyCreateProduct:
+    writes: internal
+  ShopifyUpdateProduct:
+    writes: privileged
+  ShopifyDeleteProduct:
+    writes: destructive
+  ShopifySearchOrders:
+    reads:
+    - untrusted
+    - private
+  ShopifyGetOrderDetails:
+    reads:
+    - untrusted
+    - private
+  ShopifyDraftOrder:
+    writes: internal
+  ShopifyManageOrder:
+    writes: privileged
+  ShopifySearchCustomers:
+    reads:
+    - untrusted
+    - private
+  ShopifyGetStoreAnalytics:
+    reads:
+    - untrusted
+    - private
+  FedExShipManagerGetQuote:
+    reads:
+    - untrusted
+    - private
+  FedExShipManagerCreateShipmentLabel:
+    writes: internal
+  FedExShipManagerGetShipmentDetails:
+    reads:
+    - untrusted
+    - private
+  FedExShipManagerManageShipment:
+    writes: privileged
+  FedExShipManagerSearchShipment:
+    reads:
+    - untrusted
+    - private
+  FedExShipManagerSearchSavedAddresses:
+    reads:
+    - untrusted
+    - private
+  InventoryManagementSystemAddItem:
+    writes: internal
+  InventoryManagementSystemUpdateItem:
+    writes: privileged
+  InventoryManagementSystemDeleteItem:
+    writes: destructive
+  InventoryManagementSystemSearchItems:
+    reads:
+    - untrusted
+    - private
+  InventoryManagementSystemGetItemDetails:
+    reads:
+    - untrusted
+    - private
+  InventoryManagementSystemTrackInventory:
+    reads:
+    - untrusted
+    - private
+  InventoryManagementSystemSearchSuppliers:
+    reads:
+    - untrusted
+    - private
+  InventoryManagementSystemListCategories:
+    reads:
+    - untrusted
+    - private
+  CiscoUmbrellaBlockDomain:
+    writes: privileged
+  CiscoUmbrellaUnblockDomain:
+    writes: privileged
+  CiscoUmbrellaVerifyDomain:
+    reads:
+    - untrusted
+    - private
+  CiscoUmbrellaSearchThreats:
+    reads:
+    - untrusted
+    - private
+  CiscoUmbrellaGetThreatDetails:
+    reads:
+    - untrusted
+    - private
+  CiscoUmbrellaSearchPolicy:
+    reads:
+    - untrusted
+    - private
+  CiscoUmbrellaCreatePolicy:
+    writes: privileged
+  CiscoUmbrellaUpdatePolicy:
+    writes: privileged
+  CiscoUmbrellaDeletePolicy:
+    writes: destructive
+  CiscoUmbrellaGetPolicyDetails:
+    reads:
+    - untrusted
+    - private
+  CiscoUmbrellaSearchLogs:
+    reads:
+    - untrusted
+    - private
+  CiscoUmbrellaGetLogDetails:
+    reads:
+    - untrusted
+    - private
+  GitHubSearchRepositories:
+    reads:
+    - untrusted
+    - private
+  GitHubGetRepositoryDetails:
+    reads:
+    - untrusted
+    - private
+  GitHubCreateRepository:
+    writes: internal
+  GitHubDeleteRepository:
+    writes: destructive
+  GitHubUpdateRespository:
+    writes: privileged
+  GitHubPostIssue:
+    writes: external
+  GitHubSearchIssues:
+    reads:
+    - untrusted
+    - private
+  GitHubReadIssue:
+    reads:
+    - untrusted
+    - private
+  GitHubManageCollaborator:
+    writes: privileged
+    destination:
+    - collaborator_username
+  GitHubSearchUsers:
+    reads:
+    - untrusted
+    - private
+  GitHubGetUserDetails:
+    reads:
+    - untrusted
+    - private
+  SpokeoSearchPeople:
+    reads:
+    - untrusted
+    - private
+  SpokeoGetPersonDetails:
+    reads:
+    - untrusted
+    - private
+  SpokeoBackgroundCheck:
+    reads:
+    - untrusted
+    - private
+  SpokeoVerifyIdentity:
+    reads:
+    - untrusted
+    - private
+  SpokeoMonitorDataChanges:
+    reads:
+    - untrusted
+    - private
+  SpokeoGetHistoricalData:
+    reads:
+    - untrusted
+    - private
+  SpokeoGetCriminalHistory:
+    reads:
+    - untrusted
+    - private
+  SpokeoReversePhoneLookup:
+    reads:
+    - untrusted
+    - private
+  SpokeoDownloadPublicRecord:
+    reads:
+    - untrusted
+    - private
+  EpicFHIRSearchPatients:
+    reads:
+    - untrusted
+    - private
+  EpicFHIRGetPatientDetails:
+    reads:
+    - untrusted
+    - private
+  EpicFHIRSearchDoctors:
+    reads:
+    - untrusted
+    - private
+  EpicFHIRManageClinicalDocuments:
+    writes: privileged
+  EpicFHIRManageAppointments:
+    writes: privileged
+  EpicFHIRManagePatientRecords:
+    writes: privileged
+  EpicFHIRManageDiagnosticReports:
+    writes: privileged
+  EpicFHIRDownloadFiles:
+    reads:
+    - untrusted
+    - private
+  TrafficControlSearchLocations:
+    writes: privileged
+  TrafficControlGetRoadDetails:
+    writes: privileged
+  TrafficControlGetIntersectionDetails:
+    writes: privileged
+  TrafficControlSearchRoute:
+    writes: privileged
+  TrafficControlCheckTrafficLightsStates:
+    writes: privileged
+  TrafficControlManageTrafficLightState:
+    writes: privileged
+  TrafficControlMonitorTrafficCongestion:
+    writes: privileged
+  TrafficControlPredictTrafficCongestion:
+    writes: privileged
+  TrafficControlAnalyzeTrafficPatterns:
+    writes: privileged
+  TrafficControlGivePriorityToEmergencyVehicle:
+    writes: privileged
+  TrafficControlGivePriorityToPublicTransportation:
+    writes: privileged
+  TrafficControlScheduleRoadMaintenance:
+    writes: privileged
+  TDAmeritradeGetHoldingsInformation:
+    reads:
+    - untrusted
+    - private
+  TDAmeritradeGetBalance:
+    reads:
+    - untrusted
+    - private
+  TDAmeritradeTradeStock:
+    writes: external
+    destination:
+    - account
+  TDAmeritradeGetStockInformation:
+    reads:
+    - untrusted
+    - private
+  InvestmentManagerGetHoldingsInformation:
+    reads:
+    - untrusted
+    - private
+  InvestmentManagerListTransactions:
+    reads:
+    - untrusted
+    - private
+  InvestmentManagerSearchInvestments:
+    reads:
+    - untrusted
+    - private
