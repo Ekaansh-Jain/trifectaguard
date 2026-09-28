@@ -1,5 +1,70 @@
 # Results
 
+## Summary: what's independent and what's ours
+
+| Evidence | Data and tests | Who made them | Result |
+|---|---|---|---|
+| **AgentDojo** v1.2.2 (worst-case agent) | 591 attacks, 97 benign tasks | ETH Zurich (policies: us) | 0.3% of data theft, 0% of hijacks/deletions get through; 31% of benign tasks need one approval |
+| **InjecAgent** (worst-case agent) | 1,054 attacks, 38 toolkits, 330 tools | UIUC (policy: drafted automatically, frozen before the run) | 0% of data stealing, 3.3% of direct harm (0% after a post-hoc drafter fix); identical with the "enhanced" hacking prompt |
+| **Other people's sessions** | 4,096 OpenHands sessions, 248,346 tool calls, 1,198 repos | nebius/SWE-rebench-openhands-trajectories | 0.03% of calls interrupted (issue pasted), 0.17% (issue fetched as untrusted) |
+| Live models | AgentDojo banking; a LangGraph agent | benchmark: ETH; agent: us | 0/18 and 0/20 attacks got through (12/18 and 11/20 unprotected) |
+| Real clients | Claude Code (built-ins + real filesystem/fetch MCP servers), Claude Desktop | real apps; scenarios: us | exfiltration blocked; legitimate coding and docs work untouched |
+| Master scenarios | 12 attacks + 9 legitimate look-alikes × library, hooks, proxy | us | all behave as expected ([SCENARIOS.md](SCENARIOS.md)); runs on every push |
+| Adaptive red team, property tests | 20 attacks on our own rules; 120,000 generated sessions | us | 20/20; all 6 guarantees hold |
+| Our own sessions | 1,078 tool calls of security research | us | ~3% asked, ~4% denied (credential-heavy work: the worst case) |
+
+Almost every stop is an **ask**: benchmarks count it as stopped because they
+have no human; in real use, you decide. Nobody outside this project has tried
+to break it yet ([SECURITY.md](SECURITY.md)).
+
+## InjecAgent (Zhan et al., ACL 2024 Findings)
+
+`eval/injecagent/run.py`, worst-case agent: it makes the user's tool call,
+then calls every attacker tool the injected instruction asks for. The policy
+for InjecAgent's 330 tools was drafted by `trifectaguard draft-policy`'s rules
+from its `tools.json` and committed before any attack case was opened
+(`eval/injecagent/policy.yaml`).
+
+| Setting | Data stealing (544) | Direct harm (510) |
+|---|---|---|
+| base, frozen policy | **0%** | **3.3%** (17, all `NortonIdentitySafeAutoFillPersonalInfo`, drafted as internal because of "fill") |
+| enhanced (hacking prompt), frozen policy | 0% | 3.3%: identical, wording doesn't matter |
+| post-hoc: drafter treats web-form fill/input/click as sending data | 0% | 0% |
+
+The user's own tool call was allowed in all 1,054 cases; every stop was on
+an attacker tool. InjecAgent has no benign tasks, so false alarms are measured
+elsewhere (next section). Nearly all stops are asks.
+
+## Other people's sessions: false alarms on real work
+
+`eval/trajectories/public_replay.py` replays 4,096 sessions (one 127 MB chunk
+of nebius/SWE-rebench-openhands-trajectories: OpenHands agents resolving real
+GitHub issues in 1,198 repositories; 248,346 tool calls) through the Claude
+Code hooks. OpenHands' shell and editor map onto Bash/Read/Write/Edit.
+
+| The GitHub issue that starts each session is… | Calls asked | Calls denied | Sessions with any interruption |
+|---|---|---|---|
+| pasted by the user (trusted) | 0.02% | 0.01% | 0.9% |
+| fetched by the agent (untrusted: anyone can open an issue) | 0.13% | 0.04% | ~5% |
+
+Most interruptions in the untrusted case are `git reset --hard` / `rm -rf`
+right after reading the issue (ask) and network calls after the session read
+something credential-like. Replays of this data found and fixed three false
+alarms (DLP on deletions, importing a network library counted as using it,
+and substring shell patterns).
+
+## Real Claude Code with real MCP servers
+
+`eval/real/pack.py`: a sandbox with the hooks, the real
+`@modelcontextprotocol/server-filesystem` and `mcp-server-fetch` (reading a
+127.0.0.1 site), run by hand in the Claude desktop app. One session tracked
+labels across tools: untrusted content from the fetch server, credentials from
+the filesystem server reading `.env`, private data from Claude Code's Read.
+Fix-test-commit and docs-then-code ran with no interruption; the `curl` after
+the dependency README and `.env` was **denied** (secret-exfiltration). For the
+tutorial-to-CI prompt, Claude declined to write the injected step on its own,
+so the hook wasn't exercised there (the master scenarios cover that case).
+
 ## AgentDojo (v1.2.2): flow control vs. detectors vs. tool filtering
 
 Method, policies and disclosed post-hoc changes: [eval/agentdojo/README.md](eval/agentdojo/README.md).

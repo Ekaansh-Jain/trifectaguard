@@ -1,0 +1,32 @@
+{
+  "A": {
+    "sessions": 4096,
+    "calls": 248346,
+    "asked": 51,
+    "denied": 16,
+    "sessions_asked": 26,
+    "sessions_denied": 13,
+    "by_rule": {
+      "lethal-trifecta | Bash": 38,
+      "secret-exfiltration | Bash": 14,
+      "untrusted-to-destructive | Bash": 8,
+      "untrusted-to-exec | Edit": 5,
+      "dlp | Bash": 2
+    }
+  },
+  "B": {
+    "sessions": 4096,
+    "calls": 248346,
+    "asked": 326,
+    "denied": 95,
+    "sessions_asked": 162,
+    "sessions_denied": 62,
+    "by_rule": {
+      "untrusted-to-destructive | Bash": 211,
+      "lethal-trifecta | Bash": 110,
+      "secret-exfiltration | Bash": 93,
+      "untrusted-to-exec | Edit": 5,
+      "dlp | Bash": 2
+    }
+  }
+}
