@@ -137,7 +137,9 @@ class Gateway:
             cwd = self.cfg.base_dir / cwd
         params = StdioServerParameters(
             command=spec["command"], args=spec.get("args", []),
-            env={**os.environ, **{k: str(v) for k, v in (spec.get("env") or {}).items()}},
+            # npx -y prints install messages on stdout, which is the MCP channel: keep npm quiet
+            env={"npm_config_loglevel": "silent", "npm_config_update_notifier": "false",
+                 **os.environ, **{k: str(v) for k, v in (spec.get("env") or {}).items()}},
             cwd=str(cwd),
         )
         return await stack.enter_async_context(stdio_client(params))

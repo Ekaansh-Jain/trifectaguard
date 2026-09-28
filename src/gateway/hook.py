@@ -209,7 +209,15 @@ def handle(cfg: Config, data: dict) -> dict | None:
 
 
 def main(config_path: str):
-    data = json.load(sys.stdin)
+    try:
+        data = json.load(sys.stdin)
+        if not isinstance(data, dict):
+            raise ValueError("hook input is not a JSON object")
+    except ValueError as e:
+        # We can't tell which event or call this is, so fail closed: exit 2 makes
+        # Claude Code block the call (exit 1 would let it proceed).
+        print(f"[trifectaguard] unreadable hook input ({e}); blocking to be safe", file=sys.stderr)
+        sys.exit(2)
     try:
         cfg = Config.load(config_path)
     except Exception as e:  # noqa: BLE001
