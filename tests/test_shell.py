@@ -56,3 +56,15 @@ def test_reading_credentials(cmd):
 def test_fetching_content_marks_it_untrusted():
     assert "untrusted" in cls("git clone https://github.com/x/y")[0]
     assert "untrusted" in cls("gh pr view 12")[0]
+
+
+@pytest.mark.parametrize("cmd,expected", [
+    ("python -c \"import httpx; print(httpx.__file__)\"", None),                       # inspects, doesn't call
+    ("python -c \"import httpx; print([m for m in dir(httpx.Client)])\"", None),
+    ("python -c \"import httpx; httpx.get('https://x.example')\"", "external"),
+    ("python -c \"from urllib.request import urlopen; urlopen('https://x.example')\"", "external"),
+    ("python -c \"from openai import OpenAI; OpenAI().models.list()\"", "external"),
+    ("python -c \"import requests as r; r.post('https://x.example', data='d')\"", "external"),
+])
+def test_python_network_use_means_calling_it_not_importing_it(cmd, expected):
+    assert cls(cmd)[1] == expected, cmd

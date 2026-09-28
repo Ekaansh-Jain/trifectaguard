@@ -130,25 +130,38 @@ def inspect_python(code: str, network_modules: list[str]) -> str | None:
     except (SyntaxError, ValueError):
         return "unparsed"
     net = {m.split(".")[0] for m in network_modules}
-    imported, found = set(), None
+    names, dynamic_import, found = {}, False, None  # local name -> module it came from
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            imported |= {a.name.split(".")[0] for a in node.names}
+            for a in node.names:
+                root = a.name.split(".")[0]
+                names[(a.asname or a.name).split(".")[0]] = root
+                dynamic_import |= root in DYNAMIC_MODULES
         elif isinstance(node, ast.ImportFrom) and node.module:
-            imported.add(node.module.split(".")[0])
-        elif isinstance(node, ast.Call):
-            f = node.func
-            name = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
-            if name in {"exec", "eval", "compile", "__import__"}:
-                found = "dynamic"
-            elif name in ("system", "popen") and isinstance(f, ast.Attribute):
-                found = "dynamic"  # os.system / os.popen run a shell command
-            elif name in ("urlopen", "fetch"):
-                found = found or "network"
-    if imported & DYNAMIC_MODULES:
+            root = node.module.split(".")[0]
+            for a in node.names:
+                names[a.asname or a.name] = root
+            dynamic_import |= root in DYNAMIC_MODULES
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        name = f.id if isinstance(f, ast.Name) else f.attr if isinstance(f, ast.Attribute) else ""
+        if name in {"exec", "eval", "compile", "__import__"}:
+            found = "dynamic"
+        elif name in ("system", "popen") and isinstance(f, ast.Attribute):
+            found = "dynamic"  # os.system / os.popen run a shell command
+        elif found != "dynamic":
+            root = f
+            while isinstance(root, ast.Attribute):
+                root = root.value
+            used = names.get(root.id) if isinstance(root, ast.Name) else None
+            # a network library counts when it's called (httpx.get(…), OpenAI(…)),
+            # not when it's merely imported or inspected (print(httpx.__file__))
+            if used in net or name in ("urlopen", "fetch"):
+                found = "network"
+    if dynamic_import:
         found = "dynamic"
-    if found != "dynamic" and imported & net:
-        found = "network"
     return found
 
 
