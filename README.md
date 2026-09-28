@@ -23,7 +23,7 @@ Desktop, Cursor, …), or as a **Python library** for your own agents
 ## Quick start
 
 ```bash
-git clone <this repo> && cd <repo>
+git clone https://github.com/Ekaansh-Jain/trifectaguard && cd trifectaguard
 pip install ".[mcp]"          # Python 3.10+; the [mcp] extra is only needed for the proxy
 trifectaguard scan                # read-only: what could an injection make your AI apps do?
 ```
