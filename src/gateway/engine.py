@@ -83,15 +83,15 @@ LABEL_TEXT = {
     "secret": "credentials",
     "injection": "flagged injection",
 }
-SINK_TEXT = {
-    "public": "a public destination",
-    "external": "an external destination",
-    "internal": "an internal destination",
-    "local": "the local disk",
-    "exec": "an executable/startup location",
-    "privileged": "an access or account change",
-    "destructive": "a deletion",
-    "unknown": "a destination of unknown visibility",
+SINK_TEXT = {  # what a call of each write class does, for explanations
+    "public": "sends data to a public destination",
+    "external": "sends data to an external destination",
+    "internal": "sends data to an internal destination",
+    "local": "writes to the local disk",
+    "exec": "writes to an executable/startup location",
+    "privileged": "changes access or an account",
+    "destructive": "deletes something",
+    "unknown": "sends data to a destination of unknown visibility",
 }
 MIN_DEST_LEN = 1
 SHORT_DEST = 4  # shorter ids ("7", "42") count as trusted only if the user wrote them
@@ -105,6 +105,32 @@ def _norm_dest(value) -> str:
     v = _norm(value).strip()
     v = re.sub(r"^[a-z][a-z0-9+.-]*://", "", v)  # scheme
     return v.rstrip("/")
+
+
+def plain_text(value) -> str:
+    """The text inside a tool result. Results often arrive as JSON-like data
+    ({"stdout": …}, {"file": {"content": …}}); serialising that would hide
+    `KEY=value` lines behind escapes and field names, so collect the string
+    values, one per line."""
+    if isinstance(value, str):
+        return value
+    if hasattr(value, "model_dump"):  # pydantic models (MCP results, SDK objects)
+        value = value.model_dump(mode="json")
+    parts = []
+
+    def walk(v):
+        if isinstance(v, str):
+            parts.append(v)
+        elif isinstance(v, dict):
+            for x in v.values():
+                walk(x)
+        elif isinstance(v, (list, tuple, set)):
+            for x in v:
+                walk(x)
+        elif v is not None and not isinstance(v, bool):
+            parts.append(str(v))
+    walk(value)
+    return "\n".join(parts)
 
 
 _TOKEN = r"a-z0-9_%+\-@"  # characters that continue an address/identifier
@@ -323,6 +349,6 @@ class FlowEngine:
         sources = ", ".join(
             f"{LABEL_TEXT.get(l, l)} from {self.labels.get(l, where + ' itself')}" for l in flow["requires"]
         )
-        return (f"{where} sends data to {SINK_TEXT.get(role.writes, role.writes)}, "
+        return (f"{where} {SINK_TEXT.get(role.writes, 'writes to ' + str(role.writes))}, "
                 f"and {flow.get('why', 'the session state matches this rule')} "
                 f"({sources})")

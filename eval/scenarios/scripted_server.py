@@ -12,7 +12,6 @@ import sys
 
 import anyio
 import mcp.types as types
-import yaml
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 

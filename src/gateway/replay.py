@@ -19,6 +19,7 @@ from pathlib import Path
 
 from .config import Config
 from .dlp import find_secrets
+from .engine import plain_text
 from .hook import handle
 
 # long random-looking tokens (API keys pasted inline, often in quotes) that
@@ -32,7 +33,7 @@ def _text(content) -> str:
         return content
     if isinstance(content, list):
         return "\n".join(b.get("text", "") if isinstance(b, dict) else str(b) for b in content)
-    return json.dumps(content, default=str)
+    return plain_text(content)
 
 
 def events(transcript: Path):

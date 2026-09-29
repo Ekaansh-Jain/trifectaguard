@@ -1,5 +1,5 @@
 # Flow gateway for Claude Code (hook mode). Copy to hooks.yaml, edit, then:
-#   trifectaguard hooks-snippet -c hooks.yaml   → paste into ~/.claude/settings.json
+#   trifectaguard hooks-snippet -c hooks.yaml --write   → adds the hooks to ~/.claude/settings.json
 
 # Start in monitor mode: nothing is blocked, everything that WOULD be asked or
 # denied goes to ~/.mcp-gateway/audit.jsonl. Switch to enforce once it looks right.

@@ -16,7 +16,7 @@ CHECKS = [
     ("flow gateway: engine, policies, DLP, MCP proxy (stdio+HTTP), Claude Code hooks, library",
      [sys.executable, "-m", "pytest", "-q", "tests/test_flow_engine.py", "tests/test_gateway_e2e.py",
       "tests/test_hook.py", "tests/test_guard.py", "tests/test_scan.py", "tests/test_properties.py",
-      "tests/test_shell.py", "tests/test_robustness.py"]),
+      "tests/test_shell.py", "tests/test_robustness.py", "tests/test_new_user.py"]),
     ("adaptive red-team suite (attacks on the gateway's own rules)",
      [sys.executable, "eval/redteam/adaptive.py"]),
     ("master scenarios: library, Claude Code hooks, MCP proxy (eval/scenarios)",

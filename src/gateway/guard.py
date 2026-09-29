@@ -32,7 +32,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from .engine import DEFAULT_FLOWS, FlowEngine, Verdict
+from .engine import DEFAULT_FLOWS, FlowEngine, Verdict, plain_text
 from .rules import ServerPolicy
 
 DEFAULT_NS = "app"
@@ -67,12 +67,8 @@ def _policy(spec) -> ServerPolicy:
 
 
 def _text(result) -> str:
-    if isinstance(result, str):
-        return result
-    if hasattr(result, "model_dump_json"):
-        return result.model_dump_json()
     try:
-        return json.dumps(result, default=str)
+        return plain_text(result)
     except (TypeError, ValueError):
         return str(result)
 

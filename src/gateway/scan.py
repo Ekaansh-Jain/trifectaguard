@@ -66,30 +66,87 @@ class Finding:
     mitigated: bool
 
 
-def _load_json(path: Path):
+def _strip_jsonc(text: str) -> str:
+    """JSON with comments and trailing commas (VS Code's and Cursor's config
+    format) → plain JSON. Comment markers inside strings are left alone."""
+    out, i, n, in_str = [], 0, len(text), False
+    while i < n:
+        ch = text[i]
+        if in_str:
+            out.append(ch)
+            if ch == "\\" and i + 1 < n:
+                out.append(text[i + 1])
+                i += 1
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+            out.append(ch)
+        elif text.startswith("//", i):
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        elif text.startswith("/*", i):
+            end = text.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        else:
+            out.append(ch)
+        i += 1
+    return re.sub(r",(\s*[}\]])", r"\1", "".join(out))
+
+
+def _read_config(path: Path) -> tuple[dict | None, str | None]:
+    """(document, problem). A missing file is (None, None): the app isn't set up."""
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
+        text = path.read_text(encoding="utf-8-sig")
+    except FileNotFoundError:
+        return None, None
+    except OSError as e:
+        return None, f"can't read it ({e.strerror or e})"
+    try:
+        doc = json.loads(text)
+    except ValueError:
+        try:
+            doc = json.loads(_strip_jsonc(text))
+        except ValueError as e:
+            return None, f"not valid JSON ({e})"
+    if not isinstance(doc, dict):
+        return None, f"expected a JSON object, found {type(doc).__name__}"
+    return doc, None
+
+
+def _load_json(path: Path):
+    return _read_config(path)[0]
+
+
+def _unreadable(path: Path, problem: str) -> str:
+    return f"couldn't read {path}: {problem}. Servers configured there were NOT checked"
+
+
+def _args(spec: dict) -> list:
+    """A server's args as a list, however the config wrote them (missing, null, one string)."""
+    a = spec.get("args")
+    return [a] if isinstance(a, str) else list(a) if isinstance(a, (list, tuple)) else []
 
 
 def _describe(spec: dict) -> str:
     """Package/URL only: never the full argument list (it may hold tokens)."""
     if spec.get("url"):
         return re.sub(r"\?.*$", "", str(spec["url"]))
-    cmd = [str(spec.get("command", ""))] + [str(a) for a in spec.get("args", [])]
+    cmd = [str(spec.get("command", ""))] + [str(a) for a in _args(spec)]
     pkg = next((a for a in cmd[1:] if not a.startswith("-") and ("/" in a or "mcp" in a.lower())), "")
     return f"{Path(cmd[0]).name} {pkg}".strip()
 
 
 def _identify(spec: dict) -> str | None:
-    blob = " ".join([str(spec.get("command", "")), *map(str, spec.get("args", [])), str(spec.get("url", ""))])
+    blob = " ".join([str(spec.get("command", "")), *map(str, _args(spec)), str(spec.get("url", ""))])
     return next((name for name, rx in KNOWN if rx.search(blob)), None)
 
 
 def _gateway_upstreams(spec: dict) -> dict | None:
     """If this server is trifectaguard's own proxy, the servers it protects."""
-    args = [str(a) for a in spec.get("args", [])]
+    args = [str(a) for a in _args(spec)]
     if not GATEWAY.search(" ".join([str(spec.get("command", "")), *args])):
         return None
     cfg = args[args.index("-c") + 1] if "-c" in args[:-1] else None
@@ -129,7 +186,7 @@ def _source(name: str, spec: dict, creds: list[str], protected=False) -> Source:
         src.untrusted, src.sinks = ["(any tool)"], {"unknown": ["(any tool)"]}
         return src
     policy = ServerPolicy.load(preset)
-    roots = [Path(a).expanduser() for a in map(str, spec.get("args", []))
+    roots = [Path(a).expanduser() for a in map(str, _args(spec))
              if a.startswith("~") or os.path.isabs(a)]  # /…, ~/…, and C:\… on Windows
     reachable = preset != "filesystem" or any(
         Path(c).expanduser().is_relative_to(r) for c in creds for r in roots)
@@ -165,18 +222,29 @@ def discover(home: Path, cwd: Path) -> tuple[list[App], list[str]]:
         builtin = Source("built-in tools", "claude-code", "Read, Write, Edit, Bash, WebFetch, …")
         _fill(builtin, ServerPolicy.load("claude-code"), ["Read", "WebFetch", "WebSearch", "Bash", "Write"], bool(creds))
         servers = {}
-        cj = _load_json(claude_json) or {}
-        servers.update(cj.get("mcpServers") or {})
-        servers.update(((cj.get("projects") or {}).get(str(cwd)) or {}).get("mcpServers") or {})
-        servers.update((_load_json(cwd / ".mcp.json") or {}).get("mcpServers") or {})
+        cj, problem = _read_config(claude_json)
+        cj = cj or {}
+        if problem:
+            app.notes.append(_unreadable(claude_json, problem))
+        mcp_json, problem = _read_config(cwd / ".mcp.json")
+        if problem:
+            app.notes.append(_unreadable(cwd / ".mcp.json", problem))
+        project = (cj.get("projects") or {}).get(str(cwd))
+        for group in (cj.get("mcpServers"), project.get("mcpServers") if isinstance(project, dict) else None,
+                      (mcp_json or {}).get("mcpServers")):
+            if isinstance(group, dict):
+                servers.update(group)
         sources, _ = _servers_to_sources(servers, creds_abs)
         app.sources = [builtin, *sources]
         for s in (settings, home / ".claude" / "settings.local.json", cwd / ".claude" / "settings.json"):
-            doc = _load_json(s) or {}
+            doc, problem = _read_config(s)
+            doc = doc or {}
+            if problem:
+                app.notes.append(f"couldn't read {s}: {problem}")
             hooks = json.dumps(doc.get("hooks") or {})
             if "trifectaguard hook" in hooks or "src.gateway hook" in hooks:
                 app.protected = True
-            perms = doc.get("permissions") or {}
+            perms = doc.get("permissions") if isinstance(doc.get("permissions"), dict) else {}
             app.auto_approved += [p for p in perms.get("allow", []) if RISKY_AUTO_APPROVALS.match(p)]
             if perms.get("defaultMode") in ("bypassPermissions", "dontAsk"):
                 app.notes.append(f"default permission mode is {perms['defaultMode']}: tool calls run without asking you")
@@ -197,11 +265,14 @@ def discover(home: Path, cwd: Path) -> tuple[list[App], list[str]]:
         ("Windsurf", home / ".codeium/windsurf/mcp_config.json", "mcpServers"),
         ("VS Code (this project)", cwd / ".vscode/mcp.json", "servers"),
     ]:
-        doc = _load_json(path)
-        if doc is None:
+        doc, problem = _read_config(path)
+        if doc is None and problem is None:
             continue
         app = App(name, [path])
-        app.sources, app.protected = _servers_to_sources(doc.get(key) or {}, creds_abs)
+        if problem:
+            app.notes.append(_unreadable(path, problem))
+        servers = (doc or {}).get(key)
+        app.sources, app.protected = _servers_to_sources(servers if isinstance(servers, dict) else {}, creds_abs)
         apps.append(app)
 
     for app in apps:
@@ -280,7 +351,7 @@ def render(apps: list[App], creds: list[str], color: bool) -> str:
             lines.append(f"  {c('33', 'note ')} auto-approved without asking: {', '.join(app.auto_approved)}")
         for n in app.notes:
             lines.append(f"  {c('2', 'note ')} {c('2', n)}")
-        if not app.findings:
+        if not app.findings and not any("NOT checked" in n for n in app.notes):
             lines.append(f"  {c('32', 'OK   ')} no risky combination of tools")
         lines.append("")
     if creds:
@@ -289,9 +360,11 @@ def render(apps: list[App], creds: list[str], color: bool) -> str:
         lines.append("")
     if exposed:
         lines += [c("1", "Protect these flows:"),
-                  "  Claude Code:            python -m trifectaguard hooks-snippet -c hooks.yaml   (see hooks.example.yaml)",
-                  "  Claude Desktop/Cursor:  put your servers behind  python -m trifectaguard run -c gateway.yaml",
+                  "  Claude Code:            trifectaguard hooks-snippet -c hooks.yaml   (see hooks.example.yaml)",
+                  "  Claude Desktop/Cursor:  put your servers behind  trifectaguard run -c gateway.yaml",
                   "  Start with  mode: monitor  to see what it would stop before it stops anything."]
+    elif any("NOT checked" in n for a in apps for n in a.notes):
+        lines.append(c("33", "Nothing exposed in the configs that could be read (see the notes above)."))
     else:
         lines.append(c("32", "Nothing exposed."))
     return "\n".join(lines)

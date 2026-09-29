@@ -60,8 +60,11 @@ approvals) that removes repeat prompts without weakening the rules.
 ```bash
 curl -O https://raw.githubusercontent.com/Ekaansh-Jain/trifectaguard/main/hooks.example.yaml
 cp hooks.example.yaml hooks.yaml          # list your MCP servers; starts in monitor mode
-trifectaguard hooks-snippet -c hooks.yaml     # paste the output into ~/.claude/settings.json
+trifectaguard hooks-snippet -c hooks.yaml --write   # adds the hooks to ~/.claude/settings.json (keeps a .bak)
 ```
+
+Then restart Claude Code. `--write .claude/settings.json` protects one project only;
+without `--write` it prints the block for you to paste yourself.
 
 The engine runs as `UserPromptSubmit` / `PreToolUse` / `PostToolUse` hooks. It
 sees your request (so addresses and links you typed are trusted), tracks the
@@ -81,6 +84,9 @@ curl -O https://raw.githubusercontent.com/Ekaansh-Jain/trifectaguard/main/gatewa
 cp gateway.example.yaml gateway.yaml      # your servers + which repos are public/private
 trifectaguard inspect -c gateway.yaml         # how every tool is classified
 ```
+
+For a server with no preset, `trifectaguard draft-policy -c gateway.yaml --server NAME > name.yaml`
+drafts one from its tool names; review it, then set `policy: name.yaml` (relative to the config).
 
 In the app's MCP config, replace your servers with one entry running
 `trifectaguard run -c /abs/path/gateway.yaml`. One gateway fronts all of them, so a
@@ -145,10 +151,10 @@ disclosed post-hoc changes and every number: [RESULTS.md](RESULTS.md).
 | Live models | AgentDojo banking with gpt-oss-120b and gpt-oss-20b; a LangGraph email agent | ETH Zurich; us | 0/30 attacks succeeded (18/30 unprotected); 0/20 (11/20 unprotected) |
 | Real Claude Code | desktop app with the hooks, real filesystem and fetch MCP servers, a local website | us | credential exfiltration denied; fix-test-commit and docs-then-code ran with no prompts |
 | Real Claude Desktop | the proxy in front of an MCP server, in a normal chat | us | exfiltration blocked; the server delivered 0 messages |
-| [Master scenarios](SCENARIOS.md) | 12 attacks and 9 legitimate look-alikes, each through the library, the hooks and the proxy | us | all as expected, on every push |
+| [Master scenarios](SCENARIOS.md) | 12 attacks and 8 legitimate look-alikes, each through the library, the hooks and the proxy | us | all as expected, on every push |
 | Adaptive red team | 20 attacks written against its own rules, 8 legitimate controls | us | 20/20 stopped, 8/8 allowed |
 | Property tests | 6 guarantees, each checked on 20,000 generated sessions | us | always hold |
-| Unit, end-to-end and robustness tests | 108 tests on macOS, Linux and Windows with Python 3.10–3.13 | us | pass on every push |
+| Unit, end-to-end, robustness and new-user tests | 131 tests on macOS, Linux and Windows with Python 3.10–3.13 | us | pass on every push |
 
 AgentDojo by what the attacker wants (worst-case agent):
 

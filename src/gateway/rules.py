@@ -45,6 +45,7 @@ from pathlib import Path
 import yaml
 
 PRESET_DIR = Path(__file__).parent / "policies"
+VARIANT_KEYS = {"when", "unless", "reads", "writes", "destination", "destination_carries_data", "classifier"}
 WRITE_CLASSES = {"public", "external", "internal", "local", "exec", "privileged", "destructive", "unknown"}
 
 
@@ -99,9 +100,19 @@ class ServerPolicy:
         for key, entry in (tools or {}).items():
             variants = entry if isinstance(entry, list) else [entry]
             for v in variants:
+                if not isinstance(v, dict):
+                    raise ValueError(f"policy {name}: tool {key}: expected settings like {{reads: [untrusted]}}, got {v!r}")
+                unknown = set(v) - VARIANT_KEYS
+                if unknown:
+                    raise ValueError(f"policy {name}: tool {key}: unknown setting(s) {', '.join(sorted(unknown))} "
+                                     f"(known: {', '.join(sorted(VARIANT_KEYS))})")
+                for listy in ("reads", "destination"):  # `reads: untrusted` means one label, not 9 letters
+                    if isinstance(v.get(listy), str):
+                        v[listy] = [v[listy]]
                 w = v.get("writes")
                 if w is not None and w not in WRITE_CLASSES:
-                    raise ValueError(f"policy {name}: tool {key}: unknown writes class {w!r}")
+                    raise ValueError(f"policy {name}: tool {key}: unknown writes class {w!r} "
+                                     f"(known: {', '.join(sorted(WRITE_CLASSES))})")
             if any(c in key for c in "*?["):
                 self._globs.append((key, variants))
             else:
@@ -172,7 +183,8 @@ class ServerPolicy:
         out = []
         for p in patterns:
             if isinstance(p, str) and p.startswith("$"):
-                out.extend(self.vars.get(p[1:]) or [])
+                value = self.vars.get(p[1:]) or []
+                out.extend([value] if isinstance(value, str) else value)  # `public_repos: me/site` means one
             else:
                 out.append(p)
         return out

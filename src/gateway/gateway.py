@@ -35,12 +35,13 @@ from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
 from .config import Config  # noqa: F401 — re-exported for callers
-from .engine import FlowEngine, Verdict
+from .engine import FlowEngine, Verdict, plain_text
 from .pins import PinStore, fingerprint
 
 ASK_CHOICES = ["allow once", "allow for this session", "block"]
 MCP_V2 = not hasattr(Server, "list_tools")  # the lowlevel Server API changed in mcp 2.0
 CONNECT_TIMEOUT_S = 60
+CLI = "python -m src.gateway" if (__package__ or "").startswith("src.") else "trifectaguard"
 
 
 def _expand(value):
@@ -68,7 +69,7 @@ def result_text(result: types.CallToolResult) -> str:
         elif isinstance(c, types.EmbeddedResource) and isinstance(c.resource, types.TextResourceContents):
             parts.append(c.resource.text)
     if field(result, "structuredContent"):
-        parts.append(json.dumps(field(result, "structuredContent"), default=str))
+        parts.append(plain_text(field(result, "structuredContent")))
     return "\n".join(parts)
 
 
@@ -185,7 +186,7 @@ class Gateway:
             if changed:
                 self.audit("tool_definition_changed", server=name, tools=changed,
                            action=self.cfg.on_tool_change,
-                           fix="review the change, then: python -m src.gateway repin -c <config> --server " + name)
+                           fix=f"review the change, then: {CLI} repin -c <config> --server {name}")
                 if self.cfg.on_tool_change == "block":
                     self.quarantined |= {(name, t) for t in changed}
             for t in tools:

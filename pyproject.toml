@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trifectaguard"
-version = "0.1.4"
+version = "0.1.5"
 description = "Information-flow control for AI agents: stop tool calls that move untrusted-influenced data or actions somewhere they shouldn't go. Claude Code hooks, an MCP proxy, or a library."
 readme = "README.md"
 requires-python = ">=3.10"

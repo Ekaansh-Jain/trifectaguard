@@ -18,7 +18,7 @@ Each hook call is a fresh process, so session state lives in
 <state_dir>/sessions/<session_id>.json behind a file lock (parallel tool calls
 run their hooks concurrently).
 
-  settings: python -m src.gateway hooks-snippet -c gateway.yaml
+  settings: trifectaguard hooks-snippet -c hooks.yaml --write
 """
 import json
 import os
@@ -26,11 +26,9 @@ import re
 import sys
 import time
 from datetime import datetime, timezone
-from pathlib import Path
 
 from .config import Config
-from .engine import FlowEngine
-from .rules import ServerPolicy
+from .engine import FlowEngine, plain_text
 
 BUILTIN = "claude-code"  # server name used for Claude Code's own tools
 
@@ -70,9 +68,7 @@ def split_tool(tool_name: str) -> tuple[str, str]:
 
 
 def response_text(resp) -> str:
-    if isinstance(resp, str):
-        return resp
-    return json.dumps(resp, default=str)
+    return plain_text(resp)
 
 
 class ProjectApprovals:
@@ -125,8 +121,7 @@ class Session:
         self.lock = open(self.lock_path, "a+", encoding="utf-8")
         _lock(self.lock)
         policies = self.cfg.policies()
-        builtin = self.cfg.builtin or {"policy": BUILTIN}
-        policies[BUILTIN] = ServerPolicy.load(builtin.get("policy", BUILTIN), builtin.get("vars"))
+        policies[BUILTIN] = self.cfg.builtin_policy()
         self.engine = FlowEngine(policies, self.cfg.flows, strict_destinations=True,
                                  strict_links=self.cfg.strict_links)
         self.pending = {}

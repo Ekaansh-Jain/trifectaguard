@@ -10,30 +10,36 @@ Audit this machine (read-only; no config needed):
   python -m src.gateway scan [--json]
   python -m src.gateway replay [TRANSCRIPT.jsonl …]   # how often would it have stepped in on past Claude Code sessions?
 
+A server with no preset policy:
+  python -m src.gateway draft-policy -c gateway.yaml [--server NAME]   # or: draft-policy -- npx -y some-server
+  python -m src.gateway draft-policy --tools tools.json                # OpenAI/MCP-style tool definitions
+
 Fewer prompts:
   python -m src.gateway suggest -c config.yaml            # config ideas from the audit log
   python -m src.gateway approvals -c config.yaml [--clear] [--project PATH]
 
 Claude Code hook mode (no proxy; sees your request and Claude Code's own tools):
   python -m src.gateway hooks-snippet -c gateway.yaml   # settings.json block to paste
+  python -m src.gateway hooks-snippet -c gateway.yaml --write [SETTINGS]   # or merge it in for you
   python -m src.gateway hook -c gateway.yaml            # what the hooks run (reads JSON on stdin)
 """
 import argparse
 import contextlib
 import json
 import os
+import re
 import sys
 from contextlib import AsyncExitStack
 from pathlib import Path
 
-from .config import Config
+from .config import Config, ConfigError
 
 ROOT = Path(__file__).resolve().parents[2]  # the checkout, when run as src.gateway
 
 
 def load(args) -> Config:
     if args.config:
-        return Config.load(args.config)
+        return Config.load_checked(args.config)
     if not args.command:
         sys.exit("need -c CONFIG, or an upstream command after --")
     spec = {"command": args.command[0], "args": args.command[1:]}
@@ -42,19 +48,95 @@ def load(args) -> Config:
     return Config(servers={"upstream": spec})
 
 
+def _shell_path(path) -> str:
+    """A path as one shell word. Claude Code runs hook commands through a shell,
+    so a space ("My Project", "C:\\Users\\John Smith") would split it and the hook
+    would fail as a non-blocking error: unprotected without anyone noticing.
+    Double quotes work in bash, zsh and cmd.exe; Windows paths use forward
+    slashes, which Python accepts and no shell treats as an escape."""
+    p = str(path)
+    if os.name == "nt":
+        p = p.replace("\\", "/")
+    if re.fullmatch(r"[A-Za-z0-9_@%+=:,./-]+", p):
+        return p
+    return '"' + re.sub(r'(["$`\\])', r"\\\1", p) + '"'
+
+
 def hooks_snippet(config_path: str) -> dict:
     """The settings.json "hooks" block that runs hook mode for every tool."""
-    config_path = str(Path(config_path).expanduser().resolve())
+    config_path = Path(config_path).expanduser().resolve()
     package = __package__ or "src.gateway"
-    command = f"{sys.executable} -m {package} hook -c {config_path}"
+    command = f"{_shell_path(sys.executable)} -m {package} hook -c {_shell_path(config_path)}"
     if package.startswith("src."):  # running from a checkout rather than an installed package
-        command = f"cd {ROOT} && {command}"
+        command = f"cd {_shell_path(ROOT)} && {command}"
     handler = [{"type": "command", "command": command, "timeout": 30}]
     return {"hooks": {
         "UserPromptSubmit": [{"hooks": handler}],
         "PreToolUse": [{"matcher": "*", "hooks": handler}],
         "PostToolUse": [{"matcher": "*", "hooks": handler}],
     }}
+
+
+def _ours(handler: dict) -> bool:
+    cmd = str(handler.get("command", ""))
+    return " hook -c " in cmd and ("trifectaguard" in cmd or "src.gateway" in cmd)
+
+
+def write_hooks(settings: Path, snippet: dict) -> str:
+    """Merge trifectaguard's hooks into a Claude Code settings file: other
+    settings and other hooks stay, an earlier trifectaguard entry is replaced
+    (so running this twice changes nothing), and the old file is kept as .bak."""
+    doc = {}
+    if settings.exists():
+        text = settings.read_text(encoding="utf-8-sig")
+        try:
+            doc = json.loads(text) if text.strip() else {}
+        except ValueError as e:
+            raise ConfigError(f"{settings} isn't valid JSON ({e}); fix it first, or paste the output of "
+                              f"`hooks-snippet` without --write by hand") from None
+        if not isinstance(doc, dict) or not isinstance(doc.get("hooks", {}), dict):
+            raise ConfigError(f"{settings}: unexpected layout; paste the output of `hooks-snippet` by hand")
+        settings.with_name(settings.name + ".bak").write_text(text, encoding="utf-8")
+    hooks = doc.setdefault("hooks", {})
+    for event, groups in snippet["hooks"].items():
+        kept = []
+        for g in hooks.get(event) or []:
+            if isinstance(g, dict) and isinstance(g.get("hooks"), list):
+                g = {**g, "hooks": [h for h in g["hooks"] if not (isinstance(h, dict) and _ours(h))]}
+                if not g["hooks"]:
+                    continue
+            kept.append(g)
+        hooks[event] = kept + groups
+    settings.parent.mkdir(parents=True, exist_ok=True)
+    tmp = settings.with_name(settings.name + ".tmp")
+    tmp.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(settings)
+    backup = " (previous version: " + settings.name + ".bak)" if settings.with_name(settings.name + ".bak").exists() else ""
+    return (f"trifectaguard hooks written to {settings}{backup}.\n"
+            f"Restart Claude Code (or open /hooks) to load them.")
+
+
+async def server_tools(cfg: Config, only: str | None) -> list:
+    """[(server, [{name, params}])] for the servers to draft a policy for."""
+    from .draft import params_of
+    from .gateway import Gateway, field
+    names = [only] if only else [n for n, s in cfg.servers.items() if not s.get("policy")]
+    if only and only not in cfg.servers:
+        raise ConfigError(f"no server {only!r} in the config (have: {', '.join(cfg.servers)})")
+    if not names:
+        raise ConfigError("every server already has a policy; pick one with --server NAME")
+    cfg.servers = {n: cfg.servers[n] for n in names}
+    gw = Gateway(cfg)
+    out = []
+    async with AsyncExitStack() as stack:
+        await gw.connect(stack)
+        for name in names:
+            if name not in gw.upstreams:
+                raise ConfigError(f"server {name!r} didn't start (see the message above)")
+            tools = await gw.upstream_tools(name)
+            out.append((name, [{"name": t.name, "params": params_of({"inputSchema": field(t, "inputSchema") or {}})}
+                               for t in tools]))
+    return out
 
 
 async def inspect(cfg: Config):
@@ -91,6 +173,13 @@ async def inspect(cfg: Config):
 
 
 def main():
+    try:
+        _main()
+    except ConfigError as e:
+        sys.exit(f"trifectaguard: {e}")
+
+
+def _main():
     for stream in (sys.stdout, sys.stderr):
         # Always write UTF-8: on Windows, piped output otherwise defaults to cp1252,
         # which garbles →, ✓, • for whatever reads it (and can't encode some at all)
@@ -103,12 +192,19 @@ def main():
     rp = sub.add_parser("replay", help="run past Claude Code sessions through the hooks (read-only)")
     rp.add_argument("transcripts", nargs="*", help="session .jsonl files (default: this directory's sessions)")
     rp.add_argument("-c", "--config", help="hooks config (default: Claude Code built-in tools only)")
-    for name in ("run", "inspect", "repin", "hook", "hooks-snippet", "suggest", "approvals"):
+    for name in ("run", "inspect", "repin", "hook", "hooks-snippet", "suggest", "approvals", "draft-policy"):
         p = sub.add_parser(name)
         p.add_argument("-c", "--config")
         p.add_argument("--policy", help="policy preset/path for a single upstream given after --")
         if name == "repin":
             p.add_argument("--server", help="only re-pin this server (default: all)")
+        if name == "draft-policy":
+            p.add_argument("--server", help="server in the config to draft for (default: those without a policy)")
+            p.add_argument("--tools", help="JSON file of tool definitions instead of a running server")
+        if name == "hooks-snippet":
+            p.add_argument("--write", nargs="?", const="~/.claude/settings.json", metavar="SETTINGS",
+                           help="merge into a Claude Code settings file (default ~/.claude/settings.json; "
+                                "use .claude/settings.json for one project), keeping a .bak copy")
         if name == "approvals":
             p.add_argument("--clear", action="store_true")
             p.add_argument("--project", help="only this project directory")
@@ -129,7 +225,7 @@ def main():
         if not paths:
             sys.exit("no Claude Code sessions found for this directory; pass transcript paths "
                      "(~/.claude/projects/<project>/*.jsonl)")
-        cfg = Config.load(args.config) if args.config else Config(servers={}, builtin={"policy": "claude-code"})
+        cfg = Config.load_checked(args.config) if args.config else Config(servers={}, builtin={"policy": "claude-code"})
         print(render(replay(paths, cfg)))
         return
 
@@ -141,8 +237,27 @@ def main():
             from .hook import main as hook_main
             hook_main(path)
         else:
-            Config.load(path)  # fail now, not on the first tool call
-            print(json.dumps(hooks_snippet(path), indent=2))
+            Config.load_checked(path)  # fail now, not on the first tool call
+            if args.write:
+                print(write_hooks(Path(args.write).expanduser(), hooks_snippet(path)))
+            else:
+                print(json.dumps(hooks_snippet(path), indent=2))
+        return
+
+    if args.cmd == "draft-policy":
+        from .draft import draft, render
+        if args.tools:
+            from .draft import tools_from_file
+            try:
+                tools = tools_from_file(args.tools)
+            except (OSError, ValueError, KeyError, AttributeError, TypeError) as e:
+                raise ConfigError(f"{args.tools}: expected a JSON list of tools ({type(e).__name__}: {e})") from None
+            print(render(*draft(tools, Path(args.tools).stem)), end="")
+            return
+        import anyio
+        cfg = load(args)
+        for name, tools in anyio.run(server_tools, cfg, args.server):
+            print(render(*draft(tools, name)), end="")
         return
 
     cfg = load(args)

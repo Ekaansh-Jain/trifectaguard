@@ -2,8 +2,8 @@
 
 Three ways to run the same engine:
   - library:      `from trifectaguard import Guard` (see guard.py)
-  - Claude Code:  hooks (`python -m trifectaguard hooks-snippet -c config.yaml`)
-  - any MCP app:  a proxy in front of your MCP servers (`python -m trifectaguard run -c config.yaml`)
+  - Claude Code:  hooks (`trifectaguard hooks-snippet -c config.yaml --write`)
+  - any MCP app:  a proxy in front of your MCP servers (`trifectaguard run -c config.yaml`)
 
 (In this repo the package is importable as `src.gateway`; proxy.py and
 policy.py are the original single-server research proxy used by the

@@ -98,3 +98,44 @@ def draft(tools: list[dict], name: str = "drafted") -> tuple[dict, list[tuple[st
         if entry is not None:
             policy["tools"][t["name"]] = entry
     return policy, notes
+
+
+def params_of(tool: dict) -> list[str]:
+    """Parameter names from an MCP tool ({inputSchema}), an OpenAI-style function
+    ({function: {parameters}} or {parameters}) or a plain {params: […]}."""
+    if "params" in tool:
+        return list(tool["params"])
+    fn = tool.get("function", tool)
+    schema = fn.get("inputSchema") or fn.get("input_schema") or fn.get("parameters") or {}
+    return list((schema.get("properties") or {}).keys())
+
+
+def tools_from_file(path: str) -> list[dict]:
+    """A JSON file: a list of tools, or {"tools": [...]} (an MCP tools/list result)."""
+    import json
+    from pathlib import Path
+    doc = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
+    items = doc.get("tools", []) if isinstance(doc, dict) else doc
+    out = []
+    for t in items:
+        fn = t.get("function", t)
+        out.append({"name": fn["name"], "params": params_of(t)})
+    return out
+
+
+def render(policy: dict, notes: list[tuple[str, str]]) -> str:
+    """The drafted policy as YAML, with the reason for each entry as a comment."""
+    import yaml
+    why = dict(notes)
+    lines = [f"# Drafted by trifectaguard draft-policy for {len(notes)} tool(s). REVIEW BEFORE USE:",
+             "# a wrong entry is a hole. Reads are marked untrusted + private because we can't",
+             "# know who writes that data; tighten them if you do. Tools left out are treated",
+             "# as untrusted with an unknown destination (asks before sending).",
+             f"name: {policy['name']}", "tools:"]
+    for name, entry in policy["tools"].items():
+        body = yaml.safe_dump(entry, default_flow_style=True, sort_keys=False).strip()
+        lines.append(f"  {yaml.safe_dump(name).strip().removesuffix('...').strip()}: {body}   # {why[name]}")
+    left = [n for n, w in notes if n not in policy["tools"]]
+    if left:
+        lines.append("# left unclassified (no known verb): " + ", ".join(left))
+    return "\n".join(lines) + "\n"

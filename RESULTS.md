@@ -9,7 +9,7 @@
 | **Other people's sessions** | 4,096 OpenHands sessions, 248,346 tool calls, 1,198 repos | nebius/SWE-rebench-openhands-trajectories | 0.03% of calls interrupted (issue pasted), 0.17% (issue fetched as untrusted) |
 | Live models | AgentDojo banking (gpt-oss-120b, gpt-oss-20b); a LangGraph agent | benchmark: ETH; agent: us | 0/30 and 0/20 attacks got through (18/30 and 11/20 unprotected) |
 | Real clients | Claude Code (built-ins + real filesystem/fetch MCP servers), Claude Desktop | real apps; scenarios: us | exfiltration blocked; legitimate coding and docs work untouched |
-| Master scenarios | 12 attacks + 9 legitimate look-alikes × library, hooks, proxy | us | all behave as expected ([SCENARIOS.md](SCENARIOS.md)); runs on every push |
+| Master scenarios | 12 attacks + 8 legitimate look-alikes × library, hooks, proxy | us | all behave as expected ([SCENARIOS.md](SCENARIOS.md)); runs on every push |
 | Adaptive red team, property tests | 20 attacks on our own rules; 120,000 generated sessions | us | 20/20; all 6 guarantees hold |
 | Our own sessions | 1,078 tool calls of security research | us | ~3% asked, ~4% denied (credential-heavy work: the worst case) |
 
