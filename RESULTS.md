@@ -7,7 +7,7 @@
 | **AgentDojo** v1.2.2 (worst-case agent) | 591 attacks, 97 benign tasks | ETH Zurich (policies: us) | 0.3% of data theft, 0% of hijacks/deletions get through; 31% of benign tasks need one approval |
 | **InjecAgent** (worst-case agent) | 1,054 attacks, 38 toolkits, 330 tools | UIUC (policy: drafted automatically, frozen before the run) | 0% of data stealing, 3.3% of direct harm (0% after a post-hoc drafter fix); identical with the "enhanced" hacking prompt |
 | **Other people's sessions** | 4,096 OpenHands sessions, 248,346 tool calls, 1,198 repos | nebius/SWE-rebench-openhands-trajectories | 0.03% of calls interrupted (issue pasted), 0.17% (issue fetched as untrusted) |
-| Live models | AgentDojo banking; a LangGraph agent | benchmark: ETH; agent: us | 0/18 and 0/20 attacks got through (12/18 and 11/20 unprotected) |
+| Live models | AgentDojo banking (gpt-oss-120b, gpt-oss-20b); a LangGraph agent | benchmark: ETH; agent: us | 0/30 and 0/20 attacks got through (18/30 and 11/20 unprotected) |
 | Real clients | Claude Code (built-ins + real filesystem/fetch MCP servers), Claude Desktop | real apps; scenarios: us | exfiltration blocked; legitimate coding and docs work untouched |
 | Master scenarios | 12 attacks + 9 legitimate look-alikes × library, hooks, proxy | us | all behave as expected ([SCENARIOS.md](SCENARIOS.md)); runs on every push |
 | Adaptive red team, property tests | 20 attacks on our own rules; 120,000 generated sessions | us | 20/20; all 6 guarantees hold |

@@ -134,8 +134,23 @@ relay (or raises `Blocked` with `blocked="raise"`). One `Guard` per conversation
 
 ## Results
 
-On [AgentDojo](https://github.com/ethz-spylab/agentdojo) v1.2.2 with a
-worst-case agent that obeys every injection it reads:
+Everything it has been tested on, independent benchmarks first. Method,
+disclosed post-hoc changes and every number: [RESULTS.md](RESULTS.md).
+
+| Test | What was run | Made by | Result |
+|---|---|---|---|
+| [AgentDojo](https://github.com/ethz-spylab/agentdojo) v1.2.2 | 591 attacks and 97 benign tasks, worst-case agent that obeys every injection | ETH Zurich | 0.3% of data theft and 0% of hijacks and deletions get through; 31% of benign tasks need one approval (44% as an MCP proxy) |
+| [InjecAgent](https://github.com/uiuc-kang-lab/InjecAgent) | 1,054 attacks across 330 tools; policy drafted automatically and frozen before the run | UIUC | 0% of data stealing, 3.3% of direct harm; identical with the "enhanced" hacking prompt |
+| Other people's sessions | 248,346 tool calls from 4,096 OpenHands sessions in 1,198 repos ([dataset](https://huggingface.co/datasets/nebius/SWE-rebench-openhands-trajectories)) | Nebius | 0.03–0.17% of calls interrupted |
+| Live models | AgentDojo banking with gpt-oss-120b and gpt-oss-20b; a LangGraph email agent | ETH Zurich; us | 0/30 attacks succeeded (18/30 unprotected); 0/20 (11/20 unprotected) |
+| Real Claude Code | desktop app with the hooks, real filesystem and fetch MCP servers, a local website | us | credential exfiltration denied; fix-test-commit and docs-then-code ran with no prompts |
+| Real Claude Desktop | the proxy in front of an MCP server, in a normal chat | us | exfiltration blocked; the server delivered 0 messages |
+| [Master scenarios](SCENARIOS.md) | 12 attacks and 9 legitimate look-alikes, each through the library, the hooks and the proxy | us | all as expected, on every push |
+| Adaptive red team | 20 attacks written against its own rules, 8 legitimate controls | us | 20/20 stopped, 8/8 allowed |
+| Property tests | 6 guarantees, each checked on 20,000 generated sessions | us | always hold |
+| Unit, end-to-end and robustness tests | 108 tests on macOS, Linux and Windows with Python 3.10–3.13 | us | pass on every push |
+
+AgentDojo by what the attacker wants (worst-case agent):
 
 | Attacker's goal | Still succeeds with trifectaguard |
 |---|---|
@@ -144,20 +159,11 @@ worst-case agent that obeys every injection it reads:
 | deletions (39) | **0%** |
 | steer the agent among legitimate options (100) | 60% (not what it controls) |
 
-About 31% of benign tasks need one approval (44% as an MCP proxy, which can't
-see your request). It passes an adaptive red-team suite written against its own
-rules (20/20). With live models, attacks succeeded 0/12 times per model on
-AgentDojo banking (7/12 and 6/12 unprotected) and 0/20 in a LangGraph agent
-(11/20 unprotected), and it blocked exfiltration in real Claude Code and Claude
-Desktop sessions. Prompt-injection detectors
-(including this repo's own) hid clean data on 39–74% of benign tasks.
-On a second public benchmark, [InjecAgent](https://github.com/uiuc-kang-lab/InjecAgent)
-(1,054 attacks, policy drafted automatically and frozen first), 0% of
-data-stealing and 3.3% of direct-harm attacks got through. Replaying 248,346
-tool calls from 4,096 other people's coding-agent sessions, it interrupted
-0.03–0.17% of calls. [SCENARIOS.md](SCENARIOS.md) shows what it stops and lets
-through, checked on every push.
-Method, disclosed post-hoc changes and every number: [RESULTS.md](RESULTS.md).
+On the same benchmark, prompt-injection detectors (AgentDojo's own and this
+repo's fine-tuned one) let 1.7–27.6% of attacks through and hid clean data on
+39–74% of benign tasks. Almost every trifectaguard stop is an **ask**:
+benchmarks count it as stopped because they have no human; in real use, you
+decide.
 
 ## Limits
 
@@ -202,9 +208,16 @@ git clone https://github.com/Ekaansh-Jain/trifectaguard && cd trifectaguard
 pip install ".[mcp]" agentdojo openai python-dotenv
 cp .env.example .env                              # Groq / NVIDIA NIM / Gemini keys, for live-model runs only
 python run_all_tests.py --no-llm                  # every test, no API calls
+python -m pytest tests/                           # unit, end-to-end, property and robustness tests
+python eval/scenarios/run.py                      # master scenarios × library, hooks, proxy (writes SCENARIOS.md)
 python eval/redteam/adaptive.py                   # attacks on trifectaguard's own rules
 python eval/agentdojo/worst_case.py --hook        # AgentDojo, model-independent (~3 min)
 python eval/agentdojo/report.py                   # tables
+python eval/injecagent/run.py /path/to/InjecAgent # InjecAgent (clone uiuc-kang-lab/InjecAgent first)
+python eval/trajectories/public_replay.py sessions.parquet   # false alarms on public OpenHands sessions
+python eval/agentdojo/live.py                     # live models on AgentDojo (needs API keys)
+python eval/library/langgraph_live.py             # live LangGraph agent (needs API keys)
+python eval/real/pack.py setup                    # real Claude Code sandbox; prompts in its TEST.md
 python run_pilot.py --all --runs 10               # original model leak-rate benchmark
 ```
 
@@ -215,10 +228,14 @@ Inside this checkout the package is also importable as `src.gateway`
 
 - `src/gateway/`: the package (`trifectaguard` when installed): `engine.py` (labels +
   flow rules), `rules.py` (YAML policies), `policies/` (presets), `dlp.py`,
-  `hook.py` (Claude Code), `gateway.py` (MCP proxy), `guard.py` (library),
-  `scan.py`, `pins.py`. `proxy.py`/`policy.py` are the original research proxy.
-- `eval/`: AgentDojo, red-team, live-agent, Claude Code and Claude Desktop checks.
-- `tests/`: unit and end-to-end tests.
+  `shell.py` (Bash classifier), `hook.py` (Claude Code), `gateway.py` (MCP proxy),
+  `guard.py` (library), `pins.py`, and the `scan`, `replay`, `suggest` and
+  `draft-policy` commands. `proxy.py`/`policy.py`/`adjudicator.py`/`detector.py`
+  are from the original research phase.
+- `eval/`: `agentdojo/`, `injecagent/`, `trajectories/` (public sessions),
+  `scenarios/` (master catalog), `redteam/`, `library/` (live LangGraph agent),
+  `claude_code/` and `real/` (real Claude Code), `mcp_client/` (Claude Desktop).
+- `tests/`: unit, end-to-end, property and robustness tests (run on every push).
 - `src/servers/github_mock.py`, `attacks/`, `src/harness/`, `run_pilot.py`: the
   research benchmark (sandbox server with a fake secret).
 
